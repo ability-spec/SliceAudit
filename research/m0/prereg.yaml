@@ -1,0 +1,159 @@
+protocol_id: sliceaudit-acsincome-ca-2016-2017-v2-draft
+status: draft_not_frozen
+created_from: roadmap_review_2026-10-29
+owner_approval_required: true
+
+estimand:
+  primary: person_weighted_difference_in_paired_accuracy_within_slice
+  contrast: "Delta_S = accuracy_v2(S) - accuracy_v1(S)"
+  alternative_hypothesis: "Delta_S < 0"
+  target_definition: "Folktables ACSIncome nominal-dollar target: PINCP > 50000"
+  target_currency_note: "Nominal threshold; not constant-purchasing-power comparable across 2016 and 2017."
+  model_version_comparison: "Versioned deployed pipeline: model plus threshold selected on its own validation split."
+  population_scope: "Held-out PUMS sample only; no US-population inference."
+
+source:
+  package: folktables
+  task: ACSIncome
+  years: [2016, 2017]
+  horizon: 1-Year
+  survey: person
+  states: [CA]
+  preserve_columns: [SERIALNO, SPORDER, PWGTP, ST, ADJINC]
+  feature_columns: [AGEP, COW, SCHL, MAR, OCCP, POBP, RELP, WKHP, SEX, RAC1P]
+  target_column: PINCP
+  target_rule: "PINCP > 50000"
+  task_filter: "Use the adult_filter function from the exact installed Folktables version; capture source and package version in ENV.md/report."
+
+split:
+  method: sha256_household_hash_bucket
+  hash: SHA256
+  salt: "sliceaudit-acsincome-ca-2016-2017-v1"
+  unit: SERIALNO
+  assignment_before_task_filter: true
+  2017_household_bucket_shares:
+    train: 0.50
+    validation: 0.10
+    discovery: 0.20
+    confirmation: 0.20
+  2016_household_bucket_shares:
+    train: 0.50
+    validation: 0.10
+    unused: 0.40
+  sample_size_matching:
+    required_before_model_fit: true
+    method: deterministic_whole_household_downsample_of_larger_training_cohort
+    target: smaller_eligible_person_count_between_years
+    report_residual_person_count_difference: true
+  leakage_checks:
+    household_cross_split_count: 0
+    permutation_invariant: true
+
+firewall:
+  m0_1_allowed_splits: [train, validation]
+  m0_1_forbidden_splits: [discovery, confirmation]
+  forbid_heldout_labels_features_summaries: true
+  forbid_model_training: true
+  forbid_predictions: true
+  forbid_metrics_on_discovery_confirmation: true
+  note: "Create raw household split assignments first. Apply adult_filter and ACSIncome.df_to_pandas only to train/validation at M0.1."
+
+models:
+  S-A:
+    v1: "HistGradientBoostingClassifier trained on 2016"
+    v2: "Same HGB configuration trained on 2017"
+    training_size: "Match eligible person counts by deterministic whole-household subsampling before fit."
+    threshold: "Select independently for each year on its own validation split by maximum accuracy; tie-break closest to 0.5."
+  S-B:
+    v1: "LogisticRegression trained on 2017"
+    v2: "Same HGB_2017 artifact as S-A v2"
+    threshold: "Select each pipeline threshold on 2017 validation using the same rule."
+    retraining_noise_inference: false
+  N-0:
+    v1: HGB_2017
+    v2: HGB_2017_bootstrap_seed_replica
+    purpose: negative_control
+
+slices:
+  n_floor: "TODO(owner)"
+  k: "TODO(owner)"
+  eligible_features: "TODO(owner)"
+  model_input_features: "TODO(owner)"
+  candidate_depth: [1, 2]
+  candidate_feature_bins:
+    AGEP: ["17-24", "25-34", "35-44", "45-54", "55-64", "65+"]
+    WKHP: ["1-19", "20-34", "35-39", "40", "41-49", "50+"]
+    SCHL: ["no_diploma", "hs_ged", "college_associate", "bachelor", "graduate"]
+    COW: "official_or_raw_codes_as_frozen"
+    OCCP: "major_groups_from_frozen_official_2010_code_mapping"
+    RELP: "six_groups_as_defined_in_frozen_mapping"
+  mapping_artifact_hashes: "TODO(before_G0)"
+  sensitive_features_excluded_by_default: [SEX, RAC1P, POBP, MAR]
+
+thresholds:
+  validation_metric: accuracy
+  selection: maximum_accuracy
+  tie_break: closest_to_0.5
+  per_model_reselected: true
+  fixed_common_threshold_sensitivity: "TODO(owner): include or exclude before G0"
+
+statistics:
+  discovery:
+    ranking: "most_negative_cluster-aware statistic"
+    selection_commit: selection.json
+    max_selected_slices: "TODO(owner; roadmap default 3 per scenario)"
+    jaccard_duplicate_cutoff: 0.5
+    confirmation_access_before_commit: forbidden
+  confirmation:
+    primary_test_candidate: cluster_robust_Wald_t_on_person_weighted_paired_difference
+    alternative: "Delta_S < 0"
+    cluster_id: SERIALNO
+    cluster_score: "U_g = sum of per-person paired correctness differences in slice S for household g"
+    estimator: "Delta_S = sum_g(U_g) / sum_g(n_g)"
+    variance_candidate: "G/(G-1) * sum_g[(U_g - Delta_S*n_g)^2] / [sum_g(n_g)]^2"
+    reference_distribution_candidate: "one-sided t with G-1 degrees of freedom"
+    mandatory_calibration: null_restricted_household_wild_cluster_bootstrap_t
+    bootstrap_replicates: 9999
+    bootstrap_weight_distribution: Rademacher
+    bootstrap_p_value: "one-sided lower tail with plus-one correction"
+    finite_sample_correction: "TODO(before_G0; specify exact studentization and null imposition)"
+    rng_seed_and_ordering: "TODO(before_G0; deterministic over sorted cluster IDs)"
+    minimum_clusters: "TODO(owner/reviewer; provisional guardrail 30, justify by simulation)"
+    person_level_exact_mcnemar: sensitivity_only_not_confirmatory
+    multiplicity: Holm
+    family: "all selected confirmation tests across S-A and S-B; maximum six under current k"
+    alpha_base: 0.05
+    alpha_attempt: "0.05 / attempt_index"
+  confidence_intervals:
+    primary: household_cluster_bootstrap
+    target: person_weighted_paired_accuracy_difference
+    coverage_simulation_required: true
+  retraining_noise:
+    K: 199
+    S-A: "secondary comparison to v1 retraining-procedure variability; do not call exchangeable model generations"
+    S-B: descriptive_only
+    N-0: calibration_negative_control
+  attempts:
+    ledger: attempt_ledger.md
+    alpha_spending: "alpha_attempt = 0.05 / A"
+
+owner_todos:
+  delta: "TODO(owner)"
+  n_floor: "TODO(owner)"
+  eligible_slice_features: "TODO(owner)"
+  model_input_features: "TODO(owner)"
+  constant_dollar_sensitivity: "TODO(owner): decide whether to preregister ADJINC-based sensitivity and single reference year"
+  fixed_common_threshold_sensitivity: "TODO(owner)"
+  cluster_test_calibration: "TODO(owner/reviewer): approve wild-cluster bootstrap specification after simulations"
+
+m0_1:
+  train_models: false
+  generate_predictions: false
+  inspect_discovery: false
+  inspect_confirmation: false
+  outputs:
+    - 01_data_report.md
+    - splits.parquet
+    - splits.parquet.sha256
+    - split_manifest.json
+    - ENV.md
