@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  split-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade numpy pandas
+      - name: Run split and firewall tests
+        run: python research/m0/test_split_logic.py
+      - name: Compile Python sources
+        run: python -m compileall -q research/m0/prepare_m0.py research/m0/test_split_logic.py manimgx_poc/scene.py

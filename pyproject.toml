@@ -1,0 +1,17 @@
+[project]
+name = "sliceaudit"
+version = "0.1.0"
+description = "A research prototype for statistically careful model-version regression audits"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "numpy>=2.0",
+  "scipy>=1.13",
+  "pandas>=2.2",
+  "pyarrow>=17",
+  "scikit-learn>=1.5",
+  "folktables>=0.0.12",
+]
+
+[project.optional-dependencies]
+render = ["manimgx>=0.1.1"]
