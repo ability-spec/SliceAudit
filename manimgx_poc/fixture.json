@@ -1,0 +1,8 @@
+{
+  "provenance": "SYNTHETIC_ILLUSTRATION_NOT_MEASURED",
+  "rows": 20,
+  "cols": 50,
+  "total_cells": 1000,
+  "corrected_indices": [0, 7, 19, 31, 54, 88, 103, 157, 201, 255, 399, 510],
+  "broken_indices": [3, 12, 25, 42, 63, 91, 111, 144, 188, 222, 333, 444, 555, 666, 777, 888, 912, 990]
+}
