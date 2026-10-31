@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import platform
 from importlib import metadata
@@ -16,14 +17,14 @@ SALT = "sliceaudit-acsincome-ca-2016-2017-v1"
 FEATURES = ["AGEP", "COW", "SCHL", "MAR", "OCCP", "POBP", "RELP", "WKHP", "SEX", "RAC1P"]
 BUCKETS = {
     2017: [(0, 5000, "train"), (5000, 6000, "validation"), (6000, 8000, "discovery"), (8000, 10000, "confirmation")],
-    2016: [(0, 5000, "train"), (5000, 6000, "validation"), (6000, 10000, "unused")],
+    2016: [(0, 8500, "train"), (8500, 10000, "validation")],
 }
 
 
-def household_digest(serialno: Any) -> str:
+def household_digest(serialno: Any, salt: str = SALT) -> str:
     if pd.isna(serialno):
         raise ValueError("SERIALNO contains missing values")
-    raw = f"{SALT}|{str(serialno).strip()}".encode("utf-8")
+    raw = f"{salt}{str(serialno).strip()}".encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -31,7 +32,9 @@ def assign_household_splits(raw: pd.DataFrame, year: int) -> pd.DataFrame:
     """Return exactly one deterministic split assignment per household."""
     if "SERIALNO" not in raw:
         raise KeyError("SERIALNO missing from raw PUMS data")
-    serials = sorted(raw["SERIALNO"].dropna().astype(str).str.strip().unique())
+    if raw["SERIALNO"].isna().any():
+        raise ValueError("SERIALNO contains missing values; refusing to silently drop households")
+    serials = sorted(raw["SERIALNO"].astype(str).str.strip().unique())
     if not serials:
         raise ValueError(f"No SERIALNO values found for {year}")
     if year not in BUCKETS:
@@ -94,6 +97,15 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
         "households": int(safe_raw["SERIALNO"].nunique()),
         "feature_missingness": {c: float(filtered[c].isna().mean()) for c in FEATURES},
         "feature_cardinality": {c: int(filtered[c].nunique(dropna=True)) for c in FEATURES},
+        "target_missingness": float(filtered["PINCP"].isna().mean()),
+        "occ_codes": sorted(str(x) for x in filtered["OCCP"].dropna().unique()),
+        "pobp_codes": sorted(str(x) for x in filtered["POBP"].dropna().unique()),
+        "household_size_quantiles": {
+            str(q): float(v)
+            for q, v in safe_raw.groupby("SERIALNO").size().quantile(
+                [0, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
+            ).items()
+        },
         "eligible_by_split": {},
     }
     for name in ("train", "validation"):
@@ -107,13 +119,32 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
 def main() -> int:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     try:
-        from folktables import ACSDataSource, adult_filter
+        from folktables import ACSDataSource, ACSIncome, adult_filter
     except Exception as exc:
         raise RuntimeError("Install project dependencies in Python 3.13 before running M0.1") from exc
 
+    task_definition = [
+        f"Folktables version: {_version('folktables')}",
+        "## adult_filter source",
+        inspect.getsource(adult_filter),
+        "",
+        "## ACSIncome task attributes",
+        f"features = {getattr(ACSIncome, 'features', None)!r}",
+        f"target = {getattr(ACSIncome, 'target', None)!r}",
+        f"group = {getattr(ACSIncome, 'group', None)!r}",
+        f"target_transform = {getattr(ACSIncome, 'target_transform', None)!r}",
+        f"preprocess = {getattr(ACSIncome, 'preprocess', None)!r}",
+    ]
+    (OUT / "folktables_definition.txt").write_text(
+        "\n".join(task_definition) + "\n", encoding="utf-8"
+    )
+
     frames, manifests = {}, []
     for year in (2016, 2017):
-        source = ACSDataSource(survey_year=str(year), horizon="1-Year", survey="person")
+        source_kwargs = {"survey_year": str(year), "horizon": "1-Year", "survey": "person"}
+        if "root_dir" in inspect.signature(ACSDataSource).parameters:
+            source_kwargs["root_dir"] = str(DATA_DIR)
+        source = ACSDataSource(**source_kwargs)
         raw = source.get_data(states=["CA"], download=True)
         if not isinstance(raw, pd.DataFrame):
             raw = pd.DataFrame(raw)
@@ -139,7 +170,7 @@ def main() -> int:
     }
     payload = {
         "salt": SALT,
-        "assignment": "SHA256(salt + '|' + SERIALNO) mod 10000",
+        "assignment": "SHA256(salt + SERIALNO) mod 10000",
         "unit": "household",
         "households_by_year_and_split": split_counts,
         "eligible_person_counts_train_validation": {
@@ -173,6 +204,22 @@ def main() -> int:
             f"- Positive rate (safe partitions only): {stats[year]['positive_rate']:.6f}",
             f"- Unique households in safe raw rows: {stats[year]['households']:,}",
             f"- Eligible persons by split: {json.dumps(stats[year]['eligible_by_split'], sort_keys=True)}",
+            f"- Household-size quantiles: {json.dumps(stats[year]['household_size_quantiles'], sort_keys=True)}",
+            f"- Feature missingness: {json.dumps(stats[year]['feature_missingness'], sort_keys=True)}",
+            f"- Feature cardinality: {json.dumps(stats[year]['feature_cardinality'], sort_keys=True)}",
+            f"- Target missingness: {stats[year]['target_missingness']:.6f}",
+            "",
+        ])
+    for code in ("occ_codes", "pobp_codes"):
+        left = set(stats[2016][code])
+        right = set(stats[2017][code])
+        lines.extend([
+            f"## {code.upper()} code-set comparison (train/validation only)",
+            "",
+            f"- 2016 unique codes: {len(left)}",
+            f"- 2017 unique codes: {len(right)}",
+            f"- 2016 only: {json.dumps(sorted(left - right))}",
+            f"- 2017 only: {json.dumps(sorted(right - left))}",
             "",
         ])
     lines.extend([

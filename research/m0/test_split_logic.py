@@ -1,6 +1,7 @@
 """Dependency-light tests for household splits and the M0.1 data firewall."""
 from __future__ import annotations
 
+import hashlib
 import sys
 import types
 import unittest
@@ -13,10 +14,35 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from prepare_m0 import (  # noqa: E402
     FEATURES,
+    SALT,
     assign_household_splits,
     assert_no_household_leakage,
     describe_safe_partition,
+    household_digest,
 )
+
+
+class TestHashContract(unittest.TestCase):
+    def test_digest_uses_direct_salt_serialno_concatenation(self):
+        serialno = "2017CA00000001"
+        expected = hashlib.sha256(f"{SALT}{serialno}".encode("utf-8")).hexdigest()
+        self.assertEqual(household_digest(serialno), expected)
+
+    def test_salt_changes_digest(self):
+        self.assertNotEqual(
+            household_digest("HH-1", "salt-a"),
+            household_digest("HH-1", "salt-b"),
+        )
+
+    def test_missing_serialno_is_rejected(self):
+        raw = pd.DataFrame({"SERIALNO": ["HH-1", None, "HH-2"]})
+        with self.assertRaises(ValueError):
+            assign_household_splits(raw, 2017)
+
+    def test_unsupported_year_is_rejected(self):
+        raw = pd.DataFrame({"SERIALNO": ["HH-1"]})
+        with self.assertRaises(ValueError):
+            assign_household_splits(raw, 2018)
 
 
 class TestHouseholdSplit(unittest.TestCase):
@@ -39,6 +65,14 @@ class TestHouseholdSplit(unittest.TestCase):
         self.assertAlmostEqual(shares["validation"], 0.10, delta=0.010)
         self.assertAlmostEqual(shares["discovery"], 0.20, delta=0.015)
         self.assertAlmostEqual(shares["confirmation"], 0.20, delta=0.015)
+
+    def test_2016_bucket_shares_match_roadmap(self):
+        raw = pd.DataFrame({"SERIALNO": [f"HH{i:06d}" for i in range(20000)]})
+        manifest = assign_household_splits(raw, 2016)
+        shares = manifest["split"].value_counts(normalize=True)
+        self.assertAlmostEqual(shares["train"], 0.85, delta=0.015)
+        self.assertAlmostEqual(shares["validation"], 0.15, delta=0.015)
+        self.assertEqual(set(manifest["split"]), {"train", "validation"})
 
     def test_leakage_guard_rejects_household_in_two_splits(self):
         manifest = assign_household_splits(pd.DataFrame({"SERIALNO": ["A", "B", "C"]}), 2017)

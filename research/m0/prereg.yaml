@@ -29,6 +29,7 @@ split:
   method: sha256_household_hash_bucket
   hash: SHA256
   salt: "sliceaudit-acsincome-ca-2016-2017-v1"
+  hash_input: "salt concatenated directly with SERIALNO; no delimiter"
   unit: SERIALNO
   assignment_before_task_filter: true
   2017_household_bucket_shares:
@@ -37,14 +38,8 @@ split:
     discovery: 0.20
     confirmation: 0.20
   2016_household_bucket_shares:
-    train: 0.50
-    validation: 0.10
-    unused: 0.40
-  sample_size_matching:
-    required_before_model_fit: true
-    method: deterministic_whole_household_downsample_of_larger_training_cohort
-    target: smaller_eligible_person_count_between_years
-    report_residual_person_count_difference: true
+    train: 0.85
+    validation: 0.15
   leakage_checks:
     household_cross_split_count: 0
     permutation_invariant: true
@@ -62,7 +57,6 @@ models:
   S-A:
     v1: "HistGradientBoostingClassifier trained on 2016"
     v2: "Same HGB configuration trained on 2017"
-    training_size: "Match eligible person counts by deterministic whole-household subsampling before fit."
     threshold: "Select independently for each year on its own validation split by maximum accuracy; tie-break closest to 0.5."
   S-B:
     v1: "LogisticRegression trained on 2017"
@@ -98,41 +92,46 @@ thresholds:
   fixed_common_threshold_sensitivity: "TODO(owner): include or exclude before G0"
 
 statistics:
+  paired_counts:
+    corrected: "v1 incorrect and v2 correct"
+    broken: "v1 correct and v2 incorrect"
+    discordant: "D_S = C_S + B_S"
+    effect: "Delta_S = (C_S - B_S) / n_S"
+    ranking_statistic: "z_S = (C_S - B_S) / sqrt(D_S)"
   discovery:
-    ranking: "most_negative_cluster-aware statistic"
+    eligibility: "n_S >= n_floor and Delta_S < 0"
+    ranking: "ascending z_S"
+    max_selected_slices_per_scenario: 3
+    selection: "greedy; skip a candidate if Jaccard overlap > 0.5 with an already selected slice"
     selection_commit: selection.json
-    max_selected_slices: "TODO(owner; roadmap default 3 per scenario)"
-    jaccard_duplicate_cutoff: 0.5
     confirmation_access_before_commit: forbidden
+    permutation_screening:
+      method: household_level_sign_flip
+      draws: 2000
+      purpose: context_only_not_confirmatory
+      rng_seed_and_ordering: "deterministic over sorted household IDs"
   confirmation:
-    primary_test_candidate: cluster_robust_Wald_t_on_person_weighted_paired_difference
+    primary_test: exact_one_sided_McNemar
+    p_value: "P(X >= B_S), X ~ Binomial(D_S, 0.5)"
     alternative: "Delta_S < 0"
-    cluster_id: SERIALNO
-    cluster_score: "U_g = sum of per-person paired correctness differences in slice S for household g"
-    estimator: "Delta_S = sum_g(U_g) / sum_g(n_g)"
-    variance_candidate: "G/(G-1) * sum_g[(U_g - Delta_S*n_g)^2] / [sum_g(n_g)]^2"
-    reference_distribution_candidate: "one-sided t with G-1 degrees of freedom"
-    mandatory_calibration: null_restricted_household_wild_cluster_bootstrap_t
-    bootstrap_replicates: 9999
-    bootstrap_weight_distribution: Rademacher
-    bootstrap_p_value: "one-sided lower tail with plus-one correction"
-    finite_sample_correction: "TODO(before_G0; specify exact studentization and null imposition)"
-    rng_seed_and_ordering: "TODO(before_G0; deterministic over sorted cluster IDs)"
-    minimum_clusters: "TODO(owner/reviewer; provisional guardrail 30, justify by simulation)"
-    person_level_exact_mcnemar: sensitivity_only_not_confirmatory
     multiplicity: Holm
-    family: "all selected confirmation tests across S-A and S-B; maximum six under current k"
+    family: "all selected confirmation tests across S-A and S-B; maximum six"
     alpha_base: 0.05
     alpha_attempt: "0.05 / attempt_index"
+    cluster_dependence_limitation: "Person-level McNemar assumes independent discordant pairs; household clustering is documented as a limitation in the roadmap."
   confidence_intervals:
-    primary: household_cluster_bootstrap
-    target: person_weighted_paired_accuracy_difference
-    coverage_simulation_required: true
+    paired_difference: "Newcombe score interval, 95%"
+    simultaneous: "Bonferroni level 1 - alpha_attempt/m"
+    delta_not_slice_and_contrast: "household cluster bootstrap, descriptive only"
+    newcombe_coverage_validation_required: true
+    fallback_if_coverage_fails: "household cluster bootstrap with explicit limitation"
   retraining_noise:
     K: 199
-    S-A: "secondary comparison to v1 retraining-procedure variability; do not call exchangeable model generations"
-    S-B: descriptive_only
+    p_churn: "(1 + count(Delta_S(v1->v1_k) <= Delta_S(v1->v2))) / (K + 1)"
+    S-A: "inferential comparison with v1 retraining procedure; Holm across confirmed slices"
+    S-B: descriptive_stability_only
     N-0: calibration_negative_control
+    K_rule: "Choose K so 1/(K+1) < alpha_attempt/m_churn; K=199 under roadmap assumptions."
   attempts:
     ledger: attempt_ledger.md
     alpha_spending: "alpha_attempt = 0.05 / A"
@@ -140,7 +139,7 @@ statistics:
 owner_todos:
   delta: "TODO(owner)"
   n_floor: "TODO(owner)"
-  eligible_slice_features: "TODO(owner)"
+  eligible_slice_features: "TODO(owner): confirm roadmap default features AGEP, WKHP, SCHL, COW, OCCP, RELP"
   model_input_features: "TODO(owner)"
   constant_dollar_sensitivity: "TODO(owner): decide whether to preregister ADJINC-based sensitivity and single reference year"
   fixed_common_threshold_sensitivity: "TODO(owner)"
