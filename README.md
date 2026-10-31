@@ -83,6 +83,8 @@ Do not start model training (M0.2) until the protocol and owner decisions in `pr
 
 See [`SOURCES.md`](SOURCES.md) for upstream task, data, and ManimGX documentation. Those sources support dataset/tooling details only; they do not prove novelty or validate SliceAudit's statistical method.
 
-## Licensing
+## License and third-party materials
 
-No project-wide license has been selected yet. Until a `LICENSE` file is added, do not assume the repository grants permission to redistribute or reuse its code. The ManimGX optional dependency retains its own upstream license terms.
+SliceAudit-authored source code, documentation, and the synthetic ManimGX fixture in this repository are licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+Third-party dependencies retain their own licenses; they are not relicensed under Apache-2.0 by this repository. ACS Public Use Microdata Sample (PUMS) data and any derived data artifacts are also outside this project's code license and remain subject to the applicable U.S. Census Bureau terms. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) before redistributing software, data, or rendered binaries.
