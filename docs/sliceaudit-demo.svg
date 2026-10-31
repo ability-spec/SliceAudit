@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-labelledby="sx-title sx-desc">
+<!-- SliceAudit README demo. Synthetic illustration, not a model result. 40 s loop: 1 s = 2.5% in @keyframes. -->
+<title id="sx-title">SliceAudit: a better total can hide a worse group (synthetic demo)</title>
+<desc id="sx-desc">Synthetic illustration, not a real result. Ten synthetic examples are scored by an old and a new model. The new model gets 8 of 10 right instead of 7, but the orange group drops from 4 of 4 to 2 of 4: three examples are fixed and two are broken, so the total hides the drop. SliceAudit is illustrated finding the group in one partition and checking it again in another.</desc>
+<style>
+.st-root{font-family:ui-rounded,"SF Pro Rounded",Nunito,"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif}
+.st-cap{font-size:44px;font-weight:600;text-anchor:middle}
+.st-card{fill:#fffdf8;stroke:#ddd0bb;stroke-width:1.5}
+.st-lip{fill:#e6dbc8}
+.st-slot{fill:#2a2420;fill-opacity:.03;stroke:#2a2420;stroke-opacity:.16;stroke-width:1.5;stroke-dasharray:4 5}
+.st-to{fill:#fb923c;fill-opacity:.12;stroke:#fb923c;stroke-opacity:.9;stroke-width:2}
+.st-tb{fill:#60a5fa;fill-opacity:.1;stroke:#60a5fa;stroke-opacity:.7;stroke-width:2}
+.st-ring{fill:none;stroke:#f0862a;stroke-width:3;stroke-dasharray:5 5}
+[class^="sx-"]{animation-duration:40s;animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:ease-in-out}
+.sx-in,.sx-b1,.sx-b2,.sx-s1,.sx-s2,.sx-cpop,.sx-conf,.sx-shake,.sx-ring,.sx-chip,.sx-eq,.sx-pulse,.sx-stamp,.sx-stage,.sx-end,.sx-found,.sx-blink{transform-box:fill-box;transform-origin:center}
+.sx-div{transform-box:fill-box;transform-origin:50% 0}.sx-prog{transform-box:fill-box;transform-origin:0 50%;animation-timing-function:linear;animation-name:kx-prog}
+.sx-mag{animation-timing-function:linear;animation-name:kx-mag}
+.sx-mE,.sx-mF,.sx-mG,.sx-mH,.sx-mI,.sx-mJ,.sx-m76,.sx-m380{animation-timing-function:cubic-bezier(.65,0,.35,1)}
+.sx-fade{animation-name:kx-fade}.sx-c1{animation-name:kx-c1}.sx-c2{animation-name:kx-c2}.sx-c3{animation-name:kx-c3}.sx-c4{animation-name:kx-c4}.sx-c5{animation-name:kx-c5}.sx-c6{animation-name:kx-c6}.sx-c7{animation-name:kx-c7}.sx-c8{animation-name:kx-c8}.sx-c9{animation-name:kx-c9}.sx-c10{animation-name:kx-c10}.sx-c11{animation-name:kx-c11}.sx-c12{animation-name:kx-c12}.sx-c13{animation-name:kx-c13}.sx-c14{animation-name:kx-c14}
+.sx-in{animation-name:kx-in}.sx-l1{animation-name:kx-l1}.sx-l2{animation-name:kx-l2}.sx-b1{animation-name:kx-b1}.sx-b2{animation-name:kx-b2}.sx-s1{animation-name:kx-s1}.sx-s2{animation-name:kx-s2}.sx-up{animation-name:kx-up}.sx-leg{animation-name:kx-leg}.sx-conf{animation-name:kx-conf}.sx-col{animation-name:kx-col}.sx-cpop{animation-name:kx-cpop}
+.sx-mE{animation-name:kx-mE}.sx-mF{animation-name:kx-mF}.sx-mG{animation-name:kx-mG}.sx-mH{animation-name:kx-mH}.sx-mI{animation-name:kx-mI}.sx-mJ{animation-name:kx-mJ}.sx-m76{animation-name:kx-m76}.sx-m380{animation-name:kx-m380}.sx-liftO{animation-name:kx-liftO}.sx-liftB{animation-name:kx-liftB}
+.sx-grp{animation-name:kx-grp}.sx-div{animation-name:kx-div}.sx-spot{animation-name:kx-spot}.sx-dim{animation-name:kx-dim}.sx-shake{animation-name:kx-shake}.sx-flagR{animation-name:kx-flagR}.sx-ring{animation-name:kx-ring}.sx-gcard{animation-name:kx-gcard}.sx-acard{animation-name:kx-acard}.sx-pulse{animation-name:kx-pulse}.sx-flagG{animation-name:kx-flagG}.sx-chip{animation-name:kx-chip}.sx-eq{animation-name:kx-eq}.sx-stage{animation-name:kx-stage}
+.sx-p1{animation-name:kx-p1}.sx-arr{animation-name:kx-arr}.sx-p2{animation-name:kx-p2}.sx-pmag{animation-name:kx-pmag}.sx-found{animation-name:kx-found}.sx-stamp{animation-name:kx-stamp}.sx-end{animation-name:kx-end}.sx-wedge{animation-name:kx-wedge}.sx-endt{animation-name:kx-endt}.sx-blink{animation-name:kx-blink}
+@keyframes kx-fade{0%{opacity:1}1.5%,97.5%{opacity:0}100%{opacity:1}}
+@keyframes kx-prog{0%{transform:scaleX(0)}97.5%,100%{transform:scaleX(1)}}
+@keyframes kx-c1{0%,1.25%{opacity:0;transform:translateY(14px)}2.25%,5.25%{opacity:1;transform:none}6%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c2{0%,6%{opacity:0;transform:translateY(14px)}7%,11.75%{opacity:1;transform:none}12.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c3{0%,12.5%{opacity:0;transform:translateY(14px)}13.5%,17.75%{opacity:1;transform:none}18.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c4{0%,18.5%{opacity:0;transform:translateY(14px)}19.5%,23.25%{opacity:1;transform:none}24%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c5{0%,24%{opacity:0;transform:translateY(14px)}25%,29.75%{opacity:1;transform:none}30.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c6{0%,30.5%{opacity:0;transform:translateY(14px)}31.5%,35.75%{opacity:1;transform:none}36.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c7{0%,36.5%{opacity:0;transform:translateY(14px)}37.5%,41.25%{opacity:1;transform:none}42%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c8{0%,42%{opacity:0;transform:translateY(14px)}43%,47.75%{opacity:1;transform:none}48.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c9{0%,48.5%{opacity:0;transform:translateY(14px)}49.5%,53.75%{opacity:1;transform:none}54.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c10{0%,54.5%{opacity:0;transform:translateY(14px)}55.5%,58.75%{opacity:1;transform:none}59.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c11{0%,59.5%{opacity:0;transform:translateY(14px)}60.5%,64.75%{opacity:1;transform:none}65.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c12{0%,65.5%{opacity:0;transform:translateY(14px)}66.5%,71.75%{opacity:1;transform:none}72.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c13{0%,72.5%{opacity:0;transform:translateY(14px)}73.5%,78.25%{opacity:1;transform:none}79%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-c14{0%,79%{opacity:0;transform:translateY(14px)}80%,85.75%{opacity:1;transform:none}86.5%,100%{opacity:0;transform:translateY(-10px)}}
+@keyframes kx-in{0%,2%{opacity:0;transform:translateY(22px) scale(.86)}3.1%{opacity:1;transform:translateY(-4px) scale(1.02)}3.9%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-l1{0%,6.5%{opacity:0;transform:translateX(-30px)}8%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-l2{0%,13%{opacity:0;transform:translateX(-30px)}14.5%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-b1{0%,7.5%{opacity:0;transform:scale(.2)}8.4%{opacity:1;transform:scale(1.16)}9.1%,90%{opacity:1;transform:scale(1)}91%,100%{opacity:0;transform:scale(1)}}
+@keyframes kx-b2{0%,15%{opacity:0;transform:scale(.2)}15.9%{opacity:1;transform:scale(1.16)}16.6%,90%{opacity:1;transform:scale(1)}91%,100%{opacity:0;transform:scale(1)}}
+@keyframes kx-s1{0%,11.25%{opacity:0;transform:scale(.4)}12.25%{opacity:1;transform:scale(1.14)}13%,90%{opacity:1;transform:scale(1)}91%,100%{opacity:0;transform:scale(1)}}
+@keyframes kx-s2{0%,18.5%{opacity:0;transform:scale(.4)}19.5%{opacity:1;transform:scale(1.2)}20.25%,90%{opacity:1;transform:scale(1)}91%,100%{opacity:0;transform:scale(1)}}
+@keyframes kx-up{0%,19.25%{opacity:0;transform:translateY(12px)}20.5%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-leg{0%,10.5%{opacity:0}12%,58%{opacity:1}59%,100%{opacity:0}}
+@keyframes kx-conf{0%,19%{opacity:0;transform:translateY(0) scale(.15)}20.4%{opacity:1;transform:translateY(0) scale(1)}22.5%{opacity:1;transform:translateY(26px) scale(1.06)}24.5%,100%{opacity:0;transform:translateY(70px) scale(1.1)}}
+@keyframes kx-mag{0%,24.5%{opacity:0;transform:translateX(250px)}25.25%{opacity:1;transform:translateX(250px)}29.75%{opacity:1;transform:translateX(1070px)}30.5%,100%{opacity:0;transform:translateX(1070px)}}
+@keyframes kx-col{0%,25.6%{opacity:0}26.4%,90%{opacity:1}91%,100%{opacity:0}}
+@keyframes kx-cpop{0%,25.6%{opacity:0;transform:scale(.5)}26.3%{opacity:1;transform:scale(1.22)}27%,90%{opacity:1;transform:scale(1)}91%,100%{opacity:0;transform:scale(1)}}
+@keyframes kx-mE{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(332px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-mF{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(104px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-mG{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(-200px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-mH{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(408px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-mI{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(256px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-mJ{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(180px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-m76{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(-76px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-m380{0%,31.5%{transform:translateX(0)}34.5%,90%{transform:translateX(-380px)}91.5%,100%{transform:translateX(0)}}
+@keyframes kx-liftO{0%,31.5%{transform:translateY(0);animation-timing-function:ease-out}33%{transform:translateY(-30px);animation-timing-function:ease-in}34.5%,100%{transform:translateY(0)}}
+@keyframes kx-liftB{0%,31.5%{transform:translateY(0);animation-timing-function:ease-out}33%{transform:translateY(14px);animation-timing-function:ease-in}34.5%,100%{transform:translateY(0)}}
+@keyframes kx-grp{0%,34.75%{opacity:0;transform:translateY(10px)}35.9%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-div{0%,34.75%{opacity:0;transform:scaleY(0)}36.25%,90%{opacity:1;transform:scaleY(1)}91%,100%{opacity:0;transform:scaleY(1)}}
+@keyframes kx-spot{0%,36.75%{opacity:0}38%,54.5%{opacity:1}55.75%,100%{opacity:0}}
+@keyframes kx-dim{0%,36.75%{opacity:1}38%,54.5%{opacity:.16}55.75%,100%{opacity:1}}
+@keyframes kx-shake{0%,42.5%{transform:rotate(0)}43%{transform:rotate(-13deg)}43.5%{transform:rotate(11deg)}44%{transform:rotate(-7deg)}44.5%,100%{transform:rotate(0)}}
+@keyframes kx-flagR{0%,42.5%{opacity:0}43.25%,90%{opacity:1}91%,100%{opacity:0}}
+@keyframes kx-ring{0%,42.5%{opacity:0;transform:scale(1)}43%{opacity:.9;transform:scale(1)}45.5%,100%{opacity:0;transform:scale(1.6)}}
+@keyframes kx-gcard{0%,44%{opacity:0;transform:translateY(18px)}45.25%,54.5%{opacity:1;transform:none}55.75%,100%{opacity:0;transform:none}}
+@keyframes kx-acard{0%,48.75%{opacity:0;transform:translateY(18px)}50%,54.5%{opacity:1;transform:none}55.75%,100%{opacity:0;transform:none}}
+@keyframes kx-pulse{0%,49%{transform:scale(1)}50%{transform:scale(1.18)}51%,100%{transform:scale(1)}}
+@keyframes kx-flagG{0%,60.25%{opacity:0}61.25%,90%{opacity:1}91%,100%{opacity:0}}
+@keyframes kx-chip{0%,60.25%{opacity:0;transform:translateY(-12px) scale(.7)}61.25%{opacity:1;transform:translateY(0) scale(1.1)}62%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-eq{0%,66%{opacity:0;transform:translateY(14px) scale(.8)}67%{opacity:1;transform:translateY(0) scale(1.08)}67.7%,90%{opacity:1;transform:none}91%,100%{opacity:0;transform:none}}
+@keyframes kx-stage{0%,72.5%{opacity:1;transform:none}74%,100%{opacity:0;transform:translateY(-14px) scale(.96)}}
+@keyframes kx-p1{0%,74%{opacity:0;transform:translateY(24px)}75.5%,86%{opacity:1;transform:none}87.25%,100%{opacity:0;transform:none}}
+@keyframes kx-arr{0%,76.5%{opacity:0;transform:translateX(-16px)}77.75%,86%{opacity:1;transform:none}87.25%,100%{opacity:0;transform:none}}
+@keyframes kx-p2{0%,79%{opacity:0;transform:translateY(24px)}80.5%,86%{opacity:1;transform:none}87.25%,100%{opacity:0;transform:none}}
+@keyframes kx-pmag{0%,74.5%{transform:translate(-70px,50px)}77%,100%{transform:translate(0,0)}}
+@keyframes kx-found{0%,77%{opacity:0;transform:scale(.6)}78%{opacity:1;transform:scale(1.15)}78.8%,100%{opacity:1;transform:scale(1)}}
+@keyframes kx-stamp{0%,82%{opacity:0;transform:rotate(-7deg) scale(2.2)}83%{opacity:1;transform:rotate(-7deg) scale(.92)}83.7%,86%{opacity:1;transform:rotate(-7deg) scale(1)}87.25%,100%{opacity:0;transform:rotate(-7deg) scale(1)}}
+@keyframes kx-end{0%,87%{opacity:0;transform:scale(.94)}88.75%,100%{opacity:1;transform:none}}
+@keyframes kx-wedge{0%,89%{transform:translate(0,0)}90.5%,100%{transform:translate(14px,-24px)}}
+@keyframes kx-endt{0%,89.5%{opacity:0;transform:translateY(10px)}91%,100%{opacity:1;transform:none}}
+@keyframes kx-blink{0%,30%,31%,70%,71%,100%{transform:scaleY(1)}30.5%,70.5%{transform:scaleY(.1)}}
+@media (prefers-reduced-motion: reduce) {
+  [class^="sx-"] { animation: none !important; }
+  .sx-stage, .st-cap, .sx-p1, .sx-arr, .sx-p2, .sx-end,
+  .sx-mag, .sx-fade, .sx-prog { display: none !important; }
+  .sx-reduced { display: block !important; }
+}
+</style>
+<defs>
+<clipPath id="sx-clip"><rect width="1280" height="720" rx="28"/></clipPath>
+<pattern id="sx-grain" width="160" height="160" patternUnits="userSpaceOnUse"><g fill="#8a7358" fill-opacity=".16"><circle cx="12" cy="18" r="1.1"/><circle cx="47" cy="9" r=".7"/><circle cx="83" cy="31" r="1.3"/><circle cx="131" cy="14" r=".9"/><circle cx="150" cy="58" r="1.2"/><circle cx="26" cy="67" r=".8"/><circle cx="68" cy="83" r="1.4"/><circle cx="109" cy="72" r=".7"/><circle cx="141" cy="106" r="1"/><circle cx="9" cy="118" r="1.3"/><circle cx="52" cy="131" r=".9"/><circle cx="94" cy="122" r="1.1"/><circle cx="121" cy="149" r=".8"/><circle cx="33" cy="152" r="1.2"/><circle cx="77" cy="156" r=".7"/></g></pattern>
+<g id="sx-ok"><rect x="-29" y="-29" width="58" height="58" rx="15" fill="#10b981"/><path d="M-13 1l8 8 17-18" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+<g id="sx-no"><rect x="-29" y="-29" width="58" height="58" rx="15" fill="#f43f5e"/><path d="M-10-10l20 20M10-10l-20 20" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round"/></g>
+<g id="sx-base"><rect x="-33" y="227" width="66" height="252" rx="18" class="st-lip"/><rect x="-33" y="222" width="66" height="252" rx="18" class="st-card"/><rect x="-29" y="311" width="58" height="58" rx="15" class="st-slot"/><rect x="-29" y="399" width="58" height="58" rx="15" class="st-slot"/></g>
+<g id="sx-pg"><circle cy="254" r="14" fill="#c2b6a6"/><path d="M-22 296a22 22 0 0 1 44 0z" fill="#a69884"/></g>
+<g id="sx-po"><circle cy="254" r="14" fill="#fdba74"/><path d="M-22 296a22 22 0 0 1 44 0z" fill="#fb923c"/></g>
+<g id="sx-pb"><circle cy="254" r="14" fill="#93c5fd"/><path d="M-22 296a22 22 0 0 1 44 0z" fill="#60a5fa"/></g>
+<g id="sx-to"><circle cy="-8" r="7" fill="#fdba74"/><path d="M-11 13a11 11 0 0 1 22 0z" fill="#fb923c"/></g>
+<g id="sx-tb"><circle cy="-8" r="7" fill="#93c5fd"/><path d="M-11 13a11 11 0 0 1 22 0z" fill="#60a5fa"/></g>
+<g id="sx-plus"><rect x="-31" y="-18" width="62" height="36" rx="18" fill="#10b981"/><text y="8" font-size="22" font-weight="600" fill="#fff" text-anchor="middle">+1</text></g>
+<g id="sx-minus"><rect x="-31" y="-18" width="62" height="36" rx="18" fill="#f43f5e"/><text y="8" font-size="22" font-weight="600" fill="#fff" text-anchor="middle">&#8722;1</text></g>
+<rect id="sx-box" x="-37" y="391" width="74" height="74" rx="20" fill="none" stroke-width="4"/>
+</defs>
+<g class="st-root" fill="#2a2420" clip-path="url(#sx-clip)">
+<rect width="1280" height="720" fill="#f6efe3"/>
+<rect width="1280" height="720" fill="url(#sx-grain)"/>
+<g transform="translate(70 48)"><path d="M0 0L12.12-7A14 14 0 1 1 0-14Z" fill="#60a5fa"/><path d="M0 0L0-14A14 14 0 0 1 12.12-7Z" fill="#fb923c" transform="translate(2.5 -4.3)"/></g>
+<text x="94" y="57" font-size="24" font-weight="600" fill="#2a2420">SliceAudit</text>
+<rect x="1036" y="30" width="208" height="38" rx="19" fill="#f5b82e" fill-opacity=".2" stroke="#d99a1e" stroke-opacity=".85" stroke-width="1.5"/>
+<text x="1140" y="55" font-size="18" font-weight="600" fill="#8f5c06" text-anchor="middle">Synthetic example</text>
+
+<g class="sx-stage">
+<g class="sx-spot"><path d="M404-20H464L604 486H264Z" fill="#fb923c" fill-opacity=".13"/><ellipse cx="434" cy="482" rx="200" ry="26" fill="#fb923c" fill-opacity=".22"/></g>
+<g class="sx-leg"><g transform="translate(508 512) scale(.42)"><use href="#sx-ok"/></g><text x="530" y="519" font-size="20" fill="#6e6359">right guess</text><g transform="translate(690 512) scale(.42)"><use href="#sx-no"/></g><text x="712" y="519" font-size="20" fill="#6e6359">wrong guess</text></g>
+<g class="sx-grp"><rect x="290" y="174" width="288" height="36" rx="18" fill="#fb923c" fill-opacity=".16" stroke="#fb923c" stroke-opacity=".9" stroke-width="1.5"/><text x="434" y="199" font-size="20" font-weight="600" fill="#b0560a" text-anchor="middle">Orange group</text></g>
+<g class="sx-dim"><g class="sx-grp"><rect x="622" y="174" width="440" height="36" rx="18" fill="#60a5fa" fill-opacity=".14" stroke="#60a5fa" stroke-opacity=".8" stroke-width="1.5"/><text x="842" y="199" font-size="20" font-weight="600" fill="#3473bd" text-anchor="middle">Everyone else</text></g></g>
+<g class="sx-div"><rect x="599" y="226" width="2" height="244" rx="1" fill="#e0a21a" fill-opacity=".6"/></g>
+
+<g class="sx-l1"><g transform="translate(86 340)"><path d="M0-21v-9" stroke="#9a8e80" stroke-width="3" stroke-linecap="round"/><circle cy="-34" r="5" fill="#b9ad9e"/><rect x="-25" y="-21" width="50" height="42" rx="12" fill="#ece5d8" stroke="#9a8e80" stroke-width="3"/><g class="sx-blink" style="animation-delay:-9s"><circle cx="-10" cy="-3" r="5.5" fill="#5f554b"/><circle cx="10" cy="-3" r="5.5" fill="#5f554b"/></g><rect x="-8" y="9" width="16" height="4" rx="2" fill="#9a8e80"/></g><text x="126" y="338" font-size="28" font-weight="600" fill="#2a2420">Old</text><text x="126" y="363" font-size="18" fill="#6e6359">version 1</text></g>
+<g class="sx-l2"><g transform="translate(86 428)"><path d="M0-21v-9" stroke="#1d8fd0" stroke-width="3" stroke-linecap="round"/><circle cy="-34" r="5" fill="#f5b82e"/><rect x="-25" y="-21" width="50" height="42" rx="12" fill="#e2f1fc" stroke="#1d8fd0" stroke-width="3"/><g class="sx-blink"><circle cx="-10" cy="-3" r="5.5" fill="#1d8fd0"/><circle cx="10" cy="-3" r="5.5" fill="#1d8fd0"/></g><path d="M-8 9q8 6 16 0" fill="none" stroke="#1d8fd0" stroke-width="3" stroke-linecap="round"/><path d="M26-41l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#f0a81c"/></g><text x="126" y="426" font-size="28" font-weight="600" fill="#2a2420">New</text><text x="126" y="451" font-size="18" fill="#6e6359">version 2</text></g>
+
+<g transform="translate(320 0)"><g class="sx-mE"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in"><use href="#sx-base"/><g class="sx-col"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-b2"><use href="#sx-ok"/></g></g></g></g></g></g>
+<g transform="translate(472 0)"><g class="sx-mH"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in" style="animation-delay:.18s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:.33s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:.33s"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.24s"><use href="#sx-no"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.24s"><use href="#sx-ok"/></g></g><g class="sx-flagG"><use href="#sx-box" stroke="#10b981"/></g><g class="sx-chip"><g transform="translate(0 506)"><use href="#sx-plus"/></g></g></g></g></g></g>
+<g transform="translate(624 0)"><g class="sx-mF"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in" style="animation-delay:.36s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:.67s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:.67s"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.48s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.48s"><use href="#sx-ok"/></g></g></g></g></g></g>
+<g transform="translate(700 0)"><g class="sx-mI"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in" style="animation-delay:.45s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:.83s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:.83s"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.6s"><use href="#sx-no"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.6s"><use href="#sx-ok"/></g></g><g class="sx-flagG" style="animation-delay:.22s"><use href="#sx-box" stroke="#10b981"/></g><g class="sx-chip" style="animation-delay:.22s"><g transform="translate(0 506)"><use href="#sx-plus"/></g></g></g></g></g></g>
+<g transform="translate(852 0)"><g class="sx-mJ"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in" style="animation-delay:.63s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:1.17s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:1.17s"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.84s"><use href="#sx-no"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.84s"><use href="#sx-ok"/></g></g><g class="sx-flagG" style="animation-delay:.44s"><use href="#sx-box" stroke="#10b981"/></g><g class="sx-chip" style="animation-delay:.44s"><g transform="translate(0 506)"><use href="#sx-plus"/></g></g></g></g></g></g>
+<g transform="translate(1004 0)"><g class="sx-mG"><g class="sx-liftB"><g class="sx-dim"><g class="sx-in" style="animation-delay:.81s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:1.5s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-tb"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:1.5s"><use href="#sx-pb"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:1.08s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:1.08s"><use href="#sx-ok"/></g></g></g></g></g></g>
+
+<g transform="translate(396 0)"><g class="sx-m76"><g class="sx-liftO"><g class="sx-in" style="animation-delay:.09s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:.17s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-to"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:.17s"><use href="#sx-po"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.12s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.12s"><use href="#sx-ok"/></g></g></g></g></g>
+<g transform="translate(548 0)"><g class="sx-m76"><g class="sx-liftO"><g class="sx-in" style="animation-delay:.27s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:.5s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-to"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:.5s"><use href="#sx-po"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.36s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-shake"><g class="sx-b2" style="animation-delay:.36s"><use href="#sx-no"/></g></g></g><g class="sx-flagR"><use href="#sx-box" stroke="#f43f5e"/></g><g class="sx-ring"><use href="#sx-box" stroke="#f43f5e"/></g><g class="sx-chip" style="animation-delay:.9s"><g transform="translate(0 506)"><use href="#sx-minus"/></g></g></g></g></g>
+<g transform="translate(776 0)"><g class="sx-m380"><g class="sx-liftO"><g class="sx-in" style="animation-delay:.54s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:1s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-to"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:1s"><use href="#sx-po"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.72s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-b2" style="animation-delay:.72s"><use href="#sx-ok"/></g></g></g></g></g>
+<g transform="translate(928 0)"><g class="sx-m380"><g class="sx-liftO"><g class="sx-in" style="animation-delay:.72s"><use href="#sx-base"/><g class="sx-col" style="animation-delay:1.33s"><rect x="-33" y="222" width="66" height="252" rx="18" class="st-to"/></g><use href="#sx-pg"/><g class="sx-cpop" style="animation-delay:1.33s"><use href="#sx-po"/></g></g><g transform="translate(0 340)"><g class="sx-b1" style="animation-delay:.96s"><use href="#sx-ok"/></g></g><g transform="translate(0 428)"><g class="sx-shake"><g class="sx-b2" style="animation-delay:.96s"><use href="#sx-no"/></g></g></g><g class="sx-flagR"><use href="#sx-box" stroke="#f43f5e"/></g><g class="sx-ring"><use href="#sx-box" stroke="#f43f5e"/></g><g class="sx-chip" style="animation-delay:1.12s"><g transform="translate(0 506)"><use href="#sx-minus"/></g></g></g></g></g>
+
+<g class="sx-dim"><g class="sx-s1"><text x="1160" y="356" font-size="46" font-weight="600" text-anchor="middle">7/10</text></g><g class="sx-s2"><text x="1160" y="444" font-size="46" font-weight="600" text-anchor="middle">8/10</text></g><g class="sx-up"><g transform="translate(1160 494)"><rect x="-46" y="-18" width="92" height="36" rx="18" fill="#dcf3e7" stroke="#10b981" stroke-width="2"/><path d="M-30 8l9-15 9 15z" fill="#10b981"/><text x="12" y="8" font-size="22" font-weight="600" fill="#0b7a50" text-anchor="middle">+1</text></g></g></g>
+
+<g transform="translate(1160 428)"><g class="sx-conf"><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#fbbf24" transform="translate(84 0) rotate(20)"/><circle cx="97" cy="56" r="6" fill="#10b981"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#60a5fa" transform="translate(42 73) rotate(-35)"/><circle cy="112" r="6" fill="#f472b6"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#a78bfa" transform="translate(-42 73) rotate(50)"/><circle cx="-97" cy="56" r="6" fill="#fbbf24"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#10b981" transform="translate(-84 0) rotate(-15)"/><circle cx="-97" cy="-56" r="6" fill="#60a5fa"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#f472b6" transform="translate(-42 -73) rotate(30)"/><circle cy="-112" r="6" fill="#a78bfa"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#fb923c" transform="translate(42 -73) rotate(-50)"/><circle cx="97" cy="-56" r="6" fill="#10b981"/></g><g class="sx-conf" style="animation-delay:.14s"><circle cx="135" cy="36" r="5" fill="#f472b6"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#fbbf24" transform="translate(30 52) rotate(40)"/><circle cx="-36" cy="135" r="5" fill="#60a5fa"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#10b981" transform="translate(-52 30) rotate(-20)"/><circle cx="-135" cy="-36" r="5" fill="#a78bfa"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#60a5fa" transform="translate(-30 -52) rotate(65)"/><circle cx="36" cy="-135" r="5" fill="#fb923c"/><rect x="-5" y="-8" width="10" height="16" rx="2" fill="#f472b6" transform="translate(52 -30) rotate(-40)"/></g></g>
+
+<g transform="translate(0 264)"><g class="sx-mag"><circle r="46" fill="#e3f2fb" fill-opacity=".5" stroke="#2a2420" stroke-width="7"/><path d="M-24-18a30 30 0 0 1 20-14" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M34 34l30 30" stroke="#2a2420" stroke-width="12" stroke-linecap="round"/></g></g>
+
+<g class="sx-gcard"><rect x="287" y="530" width="294" height="118" rx="22" fill="#fb923c" fill-opacity=".11" stroke="#fb923c" stroke-opacity=".85" stroke-width="2"/><text x="434" y="564" font-size="20" font-weight="600" fill="#b0560a" text-anchor="middle">Orange group</text><text x="352" y="624" font-size="44" font-weight="600" text-anchor="middle">4/4</text><text x="420" y="621" font-size="38" fill="#8a7f74" text-anchor="middle">&#8594;</text><g class="sx-pulse"><text x="488" y="624" font-size="44" font-weight="600" fill="#dc2f4a" text-anchor="middle">2/4</text><path d="M532 598l10 16 10-16z" fill="#dc2f4a"/></g></g>
+<g class="sx-acard"><rect x="619" y="530" width="446" height="118" rx="22" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".75" stroke-width="2"/><text x="842" y="564" font-size="20" font-weight="600" fill="#0b7a50" text-anchor="middle">All 10 people</text><text x="744" y="624" font-size="44" font-weight="600" text-anchor="middle">7/10</text><text x="826" y="621" font-size="38" fill="#8a7f74" text-anchor="middle">&#8594;</text><text x="908" y="624" font-size="44" font-weight="600" fill="#0f8a5c" text-anchor="middle">8/10</text><path d="M962 614l10-16 10 16z" fill="#10b981"/></g>
+
+<g class="sx-eq"><text x="482" y="600" font-size="54" font-weight="600" fill="#0f8a5c" text-anchor="middle">+3</text><text x="482" y="634" font-size="20" fill="#6e6359" text-anchor="middle">fixed</text></g>
+<g class="sx-eq" style="animation-delay:.4s"><text x="632" y="600" font-size="54" font-weight="600" fill="#dc2f4a" text-anchor="middle">&#8722;2</text><text x="632" y="634" font-size="20" fill="#6e6359" text-anchor="middle">broken</text></g>
+<g class="sx-eq" style="animation-delay:.7s"><text x="742" y="600" font-size="54" font-weight="600" fill="#8a7f74" text-anchor="middle">=</text></g>
+<g class="sx-eq" style="animation-delay:1s"><text x="842" y="600" font-size="54" font-weight="600" text-anchor="middle">+1</text><text x="842" y="634" font-size="20" fill="#6e6359" text-anchor="middle">on the total</text></g>
+</g>
+
+<g class="st-cap">
+<text x="640" y="146" class="sx-c1">Meet 10 people.</text>
+<text x="640" y="146" class="sx-c2">The <tspan fill="#8a7f74">old</tspan> model makes a guess for each.</text>
+<text x="640" y="146" class="sx-c3">Then we built a <tspan fill="#1d8fd0">new</tspan> model.</text>
+<text x="640" y="146" class="sx-c4">8 right instead of 7. <tspan fill="#0f8a5c">Better!</tspan></text>
+<text x="640" y="146" class="sx-c5">But&#8230; is it better for everyone?</text>
+<text x="640" y="146" class="sx-c6">Let's sort them into groups.</text>
+<text x="640" y="146" class="sx-c7">Look at the <tspan fill="#dd6b10">orange group</tspan>.</text>
+<text x="640" y="146" class="sx-c8">Old model: 4 right. New model: <tspan fill="#dc2f4a">only 2</tspan>.</text>
+<text x="640" y="146" class="sx-c9">Total went <tspan fill="#0f8a5c">up</tspan>. Orange group went <tspan fill="#dc2f4a">down</tspan>.</text>
+<text x="640" y="146" class="sx-c10">Why didn't the total show it?</text>
+<text x="640" y="146" class="sx-c11"><tspan fill="#0f8a5c">3 people got fixed.</tspan> <tspan fill="#dc2f4a">2 got broken.</tspan></text>
+<text x="640" y="146" class="sx-c12">Add them up: +1. The drop disappears.</text>
+<text x="640" y="146" class="sx-c13"><tspan fill="#dd6b10">SliceAudit</tspan> hunts for hidden drops.</text>
+<text x="640" y="146" class="sx-c14">Find it. Then double-check on new data.</text>
+</g>
+
+<g class="sx-p1"><rect x="228" y="234" width="372" height="320" rx="26" fill="#e6dbc8"/><rect x="228" y="228" width="372" height="320" rx="26" fill="#fffdf8" stroke="#fb923c" stroke-opacity=".85" stroke-width="2.5"/><text x="414" y="278" font-size="28" font-weight="600" fill="#b0560a" text-anchor="middle">1 &#183; Find it</text>
+<use href="#sx-tb" x="298" y="326"/><use href="#sx-to" x="356" y="326"/><use href="#sx-tb" x="414" y="326"/><use href="#sx-tb" x="472" y="326"/><use href="#sx-to" x="530" y="326"/><use href="#sx-to" x="298" y="378"/><use href="#sx-tb" x="356" y="378"/><use href="#sx-tb" x="414" y="378"/><use href="#sx-to" x="472" y="378"/><use href="#sx-tb" x="530" y="378"/>
+<g class="sx-found"><circle cx="356" cy="325" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:.1s"><circle cx="530" cy="325" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:.2s"><circle cx="298" cy="377" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:.3s"><circle cx="472" cy="377" r="24" class="st-ring"/></g>
+<g class="sx-pmag"><g transform="translate(472 377)"><circle r="27" fill="#e3f2fb" fill-opacity=".5" stroke="#2a2420" stroke-width="5"/><path d="M20 20l20 20" stroke="#2a2420" stroke-width="8" stroke-linecap="round"/></g></g>
+<g class="sx-found" style="animation-delay:.6s"><text x="414" y="462" font-size="28" font-weight="600" fill="#dc2f4a" text-anchor="middle">Orange got worse?</text></g>
+<text x="414" y="520" font-size="21" fill="#6e6359" text-anchor="middle">in one half of the data</text></g>
+<g class="sx-arr"><path d="M614 388H658M646 374l14 14-14 14" fill="none" stroke="#8a7f74" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></g>
+<g class="sx-p2"><rect x="680" y="234" width="372" height="320" rx="26" fill="#e6dbc8"/><rect x="680" y="228" width="372" height="320" rx="26" fill="#fffdf8" stroke="#10b981" stroke-opacity=".8" stroke-width="2.5"/><text x="866" y="278" font-size="28" font-weight="600" fill="#0b7a50" text-anchor="middle">2 &#183; Check it</text>
+<use href="#sx-tb" x="750" y="326"/><use href="#sx-tb" x="808" y="326"/><use href="#sx-to" x="866" y="326"/><use href="#sx-tb" x="924" y="326"/><use href="#sx-to" x="982" y="326"/><use href="#sx-to" x="750" y="378"/><use href="#sx-tb" x="808" y="378"/><use href="#sx-tb" x="866" y="378"/><use href="#sx-to" x="924" y="378"/><use href="#sx-tb" x="982" y="378"/>
+<g class="sx-found" style="animation-delay:1.4s"><circle cx="866" cy="325" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:1.5s"><circle cx="982" cy="325" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:1.6s"><circle cx="750" cy="377" r="24" class="st-ring"/></g><g class="sx-found" style="animation-delay:1.7s"><circle cx="924" cy="377" r="24" class="st-ring"/></g>
+<g transform="translate(866 448)"><g class="sx-stamp"><rect x="-166" y="-36" width="332" height="72" rx="14" fill="#e2f5ea" stroke="#10b981" stroke-width="5"/><text y="13" font-size="36" font-weight="600" letter-spacing="4" fill="#0b7a50" text-anchor="middle">RECHECK</text></g></g>
+<text x="866" y="520" font-size="21" fill="#6e6359" text-anchor="middle">again, on new data</text></g>
+
+<g class="sx-end"><g transform="translate(640 282)"><circle r="130" fill="#fb923c" fill-opacity=".1"/><path d="M0 0L62.35-36A72 72 0 1 1 0-72Z" fill="#60a5fa"/><g class="sx-wedge"><path d="M0 0L0-72A72 72 0 0 1 62.35-36Z" fill="#fb923c"/></g></g>
+<text x="640" y="440" font-size="70" font-weight="600" text-anchor="middle">SliceAudit</text>
+<g class="sx-endt"><text x="640" y="492" font-size="26" fill="#6e6359" text-anchor="middle">Find model-update regressions that aggregate metrics can hide.</text></g>
+<g class="sx-endt" style="animation-delay:.3s"><text x="640" y="558" font-size="20" font-weight="600" fill="#a06605" text-anchor="middle">Synthetic illustration &#183; not a real model result</text></g></g>
+
+
+<g class="sx-reduced" style="display:none">
+  <rect x="142" y="164" width="996" height="424" rx="30" fill="#fffdf8" stroke="#ddd0bb" stroke-width="2"/>
+  <text x="640" y="242" font-size="46" font-weight="600" text-anchor="middle">The total went up.</text>
+  <text x="640" y="300" font-size="46" font-weight="600" text-anchor="middle" fill="#b0560a">One group went down.</text>
+  <g>
+    <rect x="206" y="350" width="392" height="146" rx="22" fill="#10b981" fill-opacity=".08" stroke="#10b981" stroke-width="2"/>
+    <text x="402" y="390" font-size="22" font-weight="600" text-anchor="middle" fill="#0b7a50">ALL 10 PEOPLE</text>
+    <text x="402" y="458" font-size="52" font-weight="600" text-anchor="middle">7/10 to 8/10</text>
+  </g>
+  <g>
+    <rect x="682" y="350" width="392" height="146" rx="22" fill="#fb923c" fill-opacity=".10" stroke="#fb923c" stroke-width="2"/>
+    <text x="878" y="390" font-size="22" font-weight="600" text-anchor="middle" fill="#b0560a">ORANGE GROUP</text>
+    <text x="878" y="458" font-size="52" font-weight="600" text-anchor="middle">4/4 to 2/4</text>
+  </g>
+  <text x="640" y="544" font-size="25" font-weight="600" text-anchor="middle">3 fixed minus 2 broken = +1 overall</text>
+  <text x="640" y="570" font-size="16" text-anchor="middle" fill="#8a7f74">Static view for reduced motion · synthetic example only</text>
+</g>
+
+<rect y="714" width="1280" height="6" fill="#2a2420" fill-opacity=".07"/>
+<rect y="714" width="1280" height="6" fill="#fb923c" class="sx-prog"/>
+<rect width="1280" height="720" fill="#f6efe3" class="sx-fade"/>
+</g>
+</svg>

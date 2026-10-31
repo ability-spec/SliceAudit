@@ -21,3 +21,5 @@ jobs:
         run: python research/m0/test_split_logic.py
       - name: Compile Python sources
         run: python -m compileall -q research/m0/prepare_m0.py research/m0/test_split_logic.py manimgx_poc/scene.py
+      - name: Validate README demo fixture
+        run: python docs/validate_demo_fixture.py

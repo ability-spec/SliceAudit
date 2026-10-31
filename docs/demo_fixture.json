@@ -1,0 +1,105 @@
+{
+  "provenance": "SYNTHETIC_ILLUSTRATION_NOT_MEASURED",
+  "purpose": "Explain how an overall accuracy gain can hide a regression in one group.",
+  "metric": "accuracy",
+  "old_version": "v1",
+  "new_version": "v2",
+  "examples": [
+    {
+      "id": "O1",
+      "group": "orange",
+      "truth": 1,
+      "old_prediction": 1,
+      "new_prediction": 1
+    },
+    {
+      "id": "O2",
+      "group": "orange",
+      "truth": 0,
+      "old_prediction": 0,
+      "new_prediction": 1
+    },
+    {
+      "id": "O3",
+      "group": "orange",
+      "truth": 1,
+      "old_prediction": 1,
+      "new_prediction": 1
+    },
+    {
+      "id": "O4",
+      "group": "orange",
+      "truth": 0,
+      "old_prediction": 0,
+      "new_prediction": 1
+    },
+    {
+      "id": "E1",
+      "group": "everyone_else",
+      "truth": 1,
+      "old_prediction": 1,
+      "new_prediction": 1
+    },
+    {
+      "id": "E2",
+      "group": "everyone_else",
+      "truth": 0,
+      "old_prediction": 1,
+      "new_prediction": 0
+    },
+    {
+      "id": "E3",
+      "group": "everyone_else",
+      "truth": 1,
+      "old_prediction": 1,
+      "new_prediction": 1
+    },
+    {
+      "id": "E4",
+      "group": "everyone_else",
+      "truth": 0,
+      "old_prediction": 1,
+      "new_prediction": 0
+    },
+    {
+      "id": "E5",
+      "group": "everyone_else",
+      "truth": 1,
+      "old_prediction": 0,
+      "new_prediction": 1
+    },
+    {
+      "id": "E6",
+      "group": "everyone_else",
+      "truth": 0,
+      "old_prediction": 0,
+      "new_prediction": 0
+    }
+  ],
+  "expected_summary": {
+    "all_examples": {
+      "count": 10,
+      "old_correct": 7,
+      "new_correct": 8
+    },
+    "orange_group": {
+      "count": 4,
+      "old_correct": 4,
+      "new_correct": 2
+    },
+    "everyone_else": {
+      "count": 6,
+      "old_correct": 3,
+      "new_correct": 6
+    },
+    "transitions": {
+      "fixed": 3,
+      "broken": 2,
+      "net_change": 1
+    }
+  },
+  "confirmation_stage": {
+    "provenance": "PROCESS_ILLUSTRATION_ONLY_NOT_TESTED",
+    "description": "The second panel shows where an independent re-check would happen. No confirmatory statistic or pass/fail result is encoded in this synthetic fixture."
+  }
+}

@@ -8,6 +8,14 @@ SliceAudit is an early-stage research prototype for paired comparisons of two mo
 
 The intended workflow separates slice discovery from independent confirmation, applies multiplicity-aware inference, records the evidence behind every reported result, and optionally turns that evidence into a ManimGX animation. The renderer is an optional presentation layer; the statistical core must not depend on ManimGX.
 
+<p><img src="docs/logo.svg" alt="SliceAudit logo" width="88" height="88" /></p>
+
+## A hidden regression, in 40 seconds
+
+![Animated explainer: the overall score improves while the orange group gets worse](docs/sliceaudit-demo.svg)
+
+*This is a synthetic 10-example illustration, not an empirical SliceAudit result or a ManimGX render. The underlying examples and expected totals live in [`docs/demo_fixture.json`](docs/demo_fixture.json), and CI checks that the animation's numbers match the fixture. The final card illustrates the independent re-check step; it does not claim that a confirmation test has passed. Browsers with reduced-motion enabled show a static summary instead of the animation.*
+
 ## Project status
 
 <small>Research prototype — M0/M0.1 only. No model comparison results are claimed.</small>
@@ -36,6 +44,12 @@ research/m0/
   test_split_logic.py     Determinism, household isolation, held-out filter guard, offline staging, ENV history
   01_data_report.md       Honest record of what has and has not run
   ENV.md                  Dated execution history plus the generated runtime block
+
+docs/
+  logo.svg                SliceAudit mark (blue pie, orange slice)
+  sliceaudit-demo.svg     Animated synthetic explainer shown near the top of this README
+  demo_fixture.json       Ten synthetic paired examples behind the explainer
+  validate_demo_fixture.py Checks fixture arithmetic and SVG accessibility/reduced-motion fallback
 
 manimgx_poc/
   fixture.json            Synthetic paired-flip fixture
