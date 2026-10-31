@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import numpy as np
 import json
 import platform
 from importlib import metadata
@@ -67,6 +68,29 @@ def _version(name: str) -> str:
         return "not-installed"
 
 
+def _labels_as_series(labels: Any, year: int) -> pd.Series:
+    """Normalize Folktables df_to_pandas labels, returned as a one-column DataFrame."""
+    values = labels.to_numpy() if hasattr(labels, "to_numpy") else np.asarray(labels)
+    if values.ndim == 2:
+        if values.shape[1] != 1:
+            raise AssertionError(
+                f"Expected one ACSIncome target column for {year}; got shape {values.shape}"
+            )
+        values = values[:, 0]
+    elif values.ndim != 1:
+        raise AssertionError(f"Expected one-dimensional ACSIncome labels for {year}; got shape {values.shape}")
+    return pd.Series(values).astype(int).reset_index(drop=True)
+
+
+def _callable_source(value: Any) -> str:
+    if value is None:
+        return "None"
+    try:
+        return inspect.getsource(value).strip()
+    except (OSError, TypeError):
+        return f"<source unavailable; callable repr={value!r}>"
+
+
 def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame):
     """Apply Folktables task conversion only to train/validation household rows."""
     from folktables import ACSIncome, adult_filter
@@ -79,12 +103,12 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
     if safe_raw.empty:
         raise RuntimeError(f"No train/validation raw rows for {year}")
 
-    features, labels, groups = ACSIncome.df_to_pandas(safe_raw)
+    _features, labels, _groups = ACSIncome.df_to_pandas(safe_raw)
     filtered = adult_filter(safe_raw.copy())
-    if len(filtered) != len(labels):
-        raise AssertionError(f"Folktables row mismatch for {year}: {len(filtered)} vs {len(labels)}")
+    actual = _labels_as_series(labels, year)
+    if len(filtered) != len(actual):
+        raise AssertionError(f"Folktables row mismatch for {year}: {len(filtered)} vs {len(actual)}")
     expected = filtered["PINCP"].gt(50_000).astype(int).reset_index(drop=True)
-    actual = pd.Series(labels).astype(int).reset_index(drop=True)
     if not expected.equals(actual):
         raise AssertionError(f"Target mismatch: ACSIncome is not PINCP > 50000 for {year}")
 
@@ -128,12 +152,13 @@ def main() -> int:
         "## adult_filter source",
         inspect.getsource(adult_filter),
         "",
-        "## ACSIncome task attributes",
+        "## ACSIncome task definition",
         f"features = {getattr(ACSIncome, 'features', None)!r}",
         f"target = {getattr(ACSIncome, 'target', None)!r}",
+        f"target_transform source = {_callable_source(getattr(ACSIncome, 'target_transform', None))}",
         f"group = {getattr(ACSIncome, 'group', None)!r}",
-        f"target_transform = {getattr(ACSIncome, 'target_transform', None)!r}",
-        f"preprocess = {getattr(ACSIncome, 'preprocess', None)!r}",
+        f"preprocess source = {_callable_source(getattr(ACSIncome, '_preprocess', None))}",
+        f"postprocess source = {_callable_source(getattr(ACSIncome, '_postprocess', None))}",
     ]
     (OUT / "folktables_definition.txt").write_text(
         "\n".join(task_definition) + "\n", encoding="utf-8"
@@ -228,8 +253,17 @@ def main() -> int:
         "- Household split assignment precedes task filtering.",
         "- No model training, prediction generation, or metrics on discovery/confirmation.",
         "- No inflation adjustment; primary target is nominal PINCP > 50000.",
-        "- Match eligible training cohort sizes by whole-household subsampling before M0.2.",
-        "- Cluster-aware confirmation test must be validated by simulation before G0.",
+        "- Validate Newcombe score-interval coverage by simulation as specified in the roadmap.",
+        "- McNemar's person-level independence assumption remains an explicit limitation; do not silently substitute another confirmation test.",
+    ])
+    definition_text = (OUT / "folktables_definition.txt").read_text(encoding="utf-8")
+    lines.extend([
+        "## Exact installed Folktables task definition",
+        "",
+        "```text",
+        definition_text.rstrip(),
+        "```",
+        "",
     ])
     (OUT / "01_data_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("M0.1 complete; manifest rows:", len(manifest), "SHA-256:", digest)

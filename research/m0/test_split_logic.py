@@ -105,7 +105,7 @@ class TestM01Firewall(unittest.TestCase):
             @staticmethod
             def df_to_pandas(frame):
                 filtered = fake_filter(frame.copy())
-                return filtered[FEATURES].copy(), filtered["PINCP"].gt(50_000).astype(int), filtered["RAC1P"].copy()
+                return filtered[FEATURES].copy(), pd.DataFrame({"PINCP": filtered["PINCP"].gt(50_000).astype(int)}), filtered["RAC1P"].copy()
 
         fake_module = types.ModuleType("folktables")
         fake_module.ACSIncome = FakeACSIncome
