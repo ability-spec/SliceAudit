@@ -1,15 +1,25 @@
-"""M0.1 data and split audit. Held-out task rows remain sealed."""
+"""M0.1 data and split audit. Held-out task rows remain sealed.
+
+Usage:
+    python research/m0/prepare_m0.py                     # download CA PUMS from Census
+    python research/m0/prepare_m0.py --raw-dir FILES     # fully offline; FILES/{2016,2017}
+"""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import inspect
-import numpy as np
 import json
 import platform
+import re
+import shutil
+import zipfile
+from datetime import datetime, timezone
 from importlib import metadata
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
+import numpy as np
 import pandas as pd
 
 OUT = Path(__file__).resolve().parent
@@ -20,6 +30,16 @@ BUCKETS = {
     2017: [(0, 5000, "train"), (5000, 6000, "validation"), (6000, 8000, "discovery"), (8000, 10000, "confirmation")],
     2016: [(0, 8500, "train"), (8500, 10000, "validation")],
 }
+REQUIRED_RAW_FIELDS = {"SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "PINCP", *FEATURES}
+CALIFORNIA_ST_CODE = "06"
+# Folktables derives the on-disk name differently per year: 2017+ uses the numeric state
+# code ("psam_p06.csv"), 2016 and earlier use the state abbreviation ("ss16pca.csv").
+# Offline staging must reproduce these names exactly or get_data(download=False) fails.
+PUMS_CSV_NAME = {2016: "ss16pca.csv", 2017: "psam_p06.csv"}
+# The Census download is named identically for both years, so year subdirectories are required.
+CENSUS_ZIP_NAME = "csv_pca.zip"
+ENV_BEGIN = "<!-- BEGIN GENERATED: m0_1_runtime -->"
+ENV_END = "<!-- END GENERATED: m0_1_runtime -->"
 
 
 def household_digest(serialno: Any, salt: str = SALT) -> str:
@@ -66,6 +86,123 @@ def _version(name: str) -> str:
         return metadata.version(name)
     except metadata.PackageNotFoundError:
         return "not-installed"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _missing_required_columns(columns: Sequence[str]) -> list[str]:
+    normalized = {str(c).strip().strip('"').upper() for c in columns}
+    return sorted(REQUIRED_RAW_FIELDS - normalized)
+
+
+def resolve_local_raw_source(raw_dir: Path | str, year: int) -> Path:
+    """Locate an operator-supplied PUMS file for ``year`` without any network access."""
+    if year not in PUMS_CSV_NAME:
+        raise ValueError(f"Unsupported survey year: {year}")
+    year_dir = Path(raw_dir) / str(year)
+    if not year_dir.is_dir():
+        raise FileNotFoundError(
+            f"Offline raw directory is missing {year_dir}; expected the Census file at "
+            f"{year_dir / CENSUS_ZIP_NAME} or an extracted {PUMS_CSV_NAME[year]}"
+        )
+    candidates = [year_dir / CENSUS_ZIP_NAME, year_dir / PUMS_CSV_NAME[year]]
+    for candidate in candidates:
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            return candidate
+    raise FileNotFoundError(
+        f"No non-empty PUMS file found in {year_dir}; expected {CENSUS_ZIP_NAME} or "
+        f"{PUMS_CSV_NAME[year]}"
+    )
+
+
+def _validate_staged_csv(path: Path) -> None:
+    with path.open("r", encoding="utf-8-sig", errors="replace") as handle:
+        header = handle.readline().strip()
+        first_row = handle.readline().strip()
+    if not header:
+        raise ValueError(f"{path} is empty")
+    if not first_row:
+        raise ValueError(f"{path} contains a header but no data rows")
+    missing = _missing_required_columns(header.split(","))
+    if missing:
+        raise KeyError(f"{path} is missing required PUMS columns: {missing}")
+
+
+def stage_local_raw(raw_dir: Path | str, year: int, dest_dir: Path | str = DATA_DIR) -> dict[str, Any]:
+    """Copy or extract a local PUMS file into the on-disk layout Folktables expects.
+
+    Nothing is downloaded. The staged CSV is the same file Folktables would have fetched,
+    so the split contract and firewall are unaffected by acquiring it by hand.
+    """
+    source = resolve_local_raw_source(raw_dir, year)
+    target_dir = Path(dest_dir) / str(year) / "1-Year"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / PUMS_CSV_NAME[year]
+    staging = target.with_name(target.name + ".staging")
+    try:
+        if source.suffix.lower() == ".zip":
+            with zipfile.ZipFile(source) as archive:
+                members = [
+                    name for name in archive.namelist()
+                    if Path(name).name.lower() == PUMS_CSV_NAME[year]
+                ]
+                if len(members) != 1:
+                    raise ValueError(
+                        f"{source} must contain exactly one {PUMS_CSV_NAME[year]} member; "
+                        f"found {len(members)}"
+                    )
+                with archive.open(members[0]) as reader, staging.open("wb") as writer:
+                    shutil.copyfileobj(reader, writer)
+        else:
+            if source.name.lower() != PUMS_CSV_NAME[year]:
+                raise ValueError(
+                    f"Expected extracted file {PUMS_CSV_NAME[year]} for {year}, got {source.name}"
+                )
+            shutil.copyfile(source, staging)
+        _validate_staged_csv(staging)
+        staging.replace(target)
+    finally:
+        staging.unlink(missing_ok=True)
+    return {
+        "mode": "local_file",
+        "source_path": str(source),
+        "source_sha256": _sha256_file(source),
+        "source_bytes": int(source.stat().st_size),
+        "staged_csv": str(target),
+        "staged_csv_sha256": _sha256_file(target),
+    }
+
+
+def _marker_spans(text: str) -> tuple[list[re.Match], list[re.Match]]:
+    """Only a marker alone on its own line delimits the block; prose mentions do not."""
+    begins = list(re.finditer(rf"^{re.escape(ENV_BEGIN)}\s*$", text, re.MULTILINE))
+    ends = list(re.finditer(rf"^{re.escape(ENV_END)}\s*$", text, re.MULTILINE))
+    return begins, ends
+
+
+def write_runtime_env(path: Path, body: str) -> None:
+    """Replace only the generated runtime block so hand-written environment history survives.
+
+    Anything ambiguous (no block, or a malformed block) is treated as hand-written history and
+    a fresh block is appended, because losing history is worse than a duplicated record.
+    """
+    block = f"{ENV_BEGIN}\n{body.strip()}\n{ENV_END}\n"
+    existing = path.read_text(encoding="utf-8") if path.exists() else "# M0.1 environment status\n"
+    begins, ends = _marker_spans(existing)
+    if len(begins) == 1 and len(ends) == 1 and begins[0].start() < ends[0].start():
+        head = existing[: begins[0].start()]
+        tail = existing[ends[0].end():].lstrip("\n")
+        updated = head + block + tail
+    else:
+        updated = existing.rstrip("\n") + "\n\n## Generated runtime record\n\n" + block
+    path.write_text(updated, encoding="utf-8")
+
 
 
 def _labels_as_series(labels: Any, year: int) -> pd.Series:
@@ -140,7 +277,27 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
     return stats
 
 
-def main() -> int:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="M0.1 household split and safe-partition audit (held-out rows stay sealed)."
+    )
+    parser.add_argument(
+        "--raw-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Fully offline: read already-downloaded Census PUMS files from DIR/{2016,2017} "
+            "instead of contacting www2.census.gov. Accepts csv_pca.zip or an extracted "
+            "psam_p06.csv (2017) / ss16pca.csv (2016)."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    offline = args.raw_dir is not None
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     try:
         from folktables import ACSDataSource, ACSIncome, adult_filter
@@ -164,19 +321,27 @@ def main() -> int:
         "\n".join(task_definition) + "\n", encoding="utf-8"
     )
 
-    frames, manifests = {}, []
+    frames, manifests, provenance = {}, [], {}
     for year in (2016, 2017):
         source_kwargs = {"survey_year": str(year), "horizon": "1-Year", "survey": "person"}
         if "root_dir" in inspect.signature(ACSDataSource).parameters:
             source_kwargs["root_dir"] = str(DATA_DIR)
         source = ACSDataSource(**source_kwargs)
-        raw = source.get_data(states=["CA"], download=True)
+        if offline:
+            provenance[str(year)] = stage_local_raw(args.raw_dir, year, DATA_DIR)
+            download = False
+        else:
+            provenance[str(year)] = {"mode": "census_download", "source": "www2.census.gov"}
+            download = True
+        raw = source.get_data(states=["CA"], download=download)
         if not isinstance(raw, pd.DataFrame):
             raw = pd.DataFrame(raw)
-        required = {"SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "PINCP", *FEATURES}
-        missing = sorted(required - set(raw.columns))
+        missing = sorted(REQUIRED_RAW_FIELDS - set(raw.columns))
         if missing:
             raise KeyError(f"{year} PUMS missing required fields: {missing}")
+        states = set(raw["ST"].astype(str).str.strip().str.zfill(2).unique())
+        if states != {CALIFORNIA_ST_CODE}:
+            raise AssertionError(f"{year} PUMS is not California-only; ST values: {sorted(states)}")
         frames[year] = raw
         manifests.append(assign_household_splits(raw, year))
 
@@ -197,6 +362,8 @@ def main() -> int:
         "salt": SALT,
         "assignment": "SHA256(salt + SERIALNO) mod 10000",
         "unit": "household",
+        "raw_data_acquisition": "local_files" if offline else "census_download",
+        "raw_source": provenance,
         "households_by_year_and_split": split_counts,
         "eligible_person_counts_train_validation": {
             str(y): stats[y]["eligible_by_split"] for y in (2016, 2017)
@@ -207,19 +374,42 @@ def main() -> int:
     (OUT / "split_manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     versions = {p: _version(p) for p in ("numpy", "scipy", "pandas", "pyarrow", "scikit-learn", "folktables")}
-    (OUT / "ENV.md").write_text(
-        "# M0.1 runtime environment\n\n"
-        f"- Python: {platform.python_version()}\n"
-        + "".join(f"- {k}: {v}\n" for k, v in versions.items())
-        + "\nReview the installed Folktables version and task filter before accepting this report.\n",
-        encoding="utf-8",
-    )
+    env_body = "\n".join([
+        f"- Run date (UTC): {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+        f"- Python: {platform.python_version()}",
+        *(f"- {k}: {v}" for k, v in versions.items()),
+        f"- Raw data acquisition: {'local_files (offline)' if offline else 'census_download'}",
+        *(f"- {y} source: `{provenance[str(y)].get('source_path', 'www2.census.gov')}` sha256 `{provenance[str(y)].get('source_sha256', 'n/a')}`" for y in (2016, 2017)),
+        "",
+        "Review the installed Folktables version and task filter before accepting this report.",
+    ])
+    write_runtime_env(OUT / "ENV.md", env_body)
     lines = [
         "# M0.1 data report",
         "",
         "> Train/validation summaries only. Discovery and confirmation task rows were not filtered or summarized.",
         "",
+        "## Raw data provenance",
+        "",
+        f"- Acquisition mode: `{'local_files' if offline else 'census_download'}`",
     ]
+    for year in (2016, 2017):
+        record = provenance[str(year)]
+        if record["mode"] == "local_file":
+            lines.append(
+                f"- {year}: local file `{record['source_path']}` "
+                f"({record['source_bytes']:,} bytes, sha256 `{record['source_sha256']}`), "
+                f"staged to `{record['staged_csv']}`"
+            )
+        else:
+            lines.append(
+                f"- {year}: downloaded by Folktables from "
+                f"`https://www2.census.gov/programs-surveys/acs/data/pums/{year}/1-Year/{CENSUS_ZIP_NAME}`"
+            )
+    lines.extend([
+        "- Offline mode does not verify the upstream Census checksum; the operator must confirm the files.",
+        "",
+    ])
     for year in (2016, 2017):
         lines.extend([
             f"## {year}",

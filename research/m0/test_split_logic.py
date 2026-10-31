@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import tempfile
 import types
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,13 +15,44 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from prepare_m0 import (  # noqa: E402
+    ENV_BEGIN,
+    ENV_END,
     FEATURES,
+    PUMS_CSV_NAME,
     SALT,
     assign_household_splits,
     assert_no_household_leakage,
     describe_safe_partition,
     household_digest,
+    parse_args,
+    resolve_local_raw_source,
+    stage_local_raw,
+    write_runtime_env,
 )
+
+PUMS_COLUMNS = ["SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "PINCP", *FEATURES]
+
+
+def write_synthetic_pums_csv(path: Path, rows: int = 3, drop: str | None = None) -> Path:
+    """Write a minimal CA-shaped PUMS CSV. Never used as an empirical artifact."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    columns = [c for c in PUMS_COLUMNS if c != drop]
+    lines = [",".join(columns)]
+    for index in range(rows):
+        values = {column: "1" for column in columns}
+        values["SERIALNO"] = f"2017CA{index:08d}"
+        values["ST"] = "6"
+        values["PINCP"] = "60000"
+        lines.append(",".join(values[column] for column in columns))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def write_zip(source_csv: Path, zip_path: Path, member_name: str | None = None) -> Path:
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.write(source_csv, arcname=member_name or source_csv.name)
+    return zip_path
 
 
 class TestHashContract(unittest.TestCase):
@@ -122,6 +155,175 @@ class TestM01Firewall(unittest.TestCase):
         else:
             stats = result
             self.assertEqual(stats["eligible_person_rows"], stats["raw_person_rows"])
+
+
+class TestOfflineRawMode(unittest.TestCase):
+    """Offline acquisition must feed Folktables the same file, without the network."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.raw_dir = self.root / "raw"
+        self.dest = self.root / "data"
+
+    def test_folktables_file_names_match_installed_convention(self):
+        # 2017+ uses the numeric state code, 2016 uses the state abbreviation.
+        self.assertEqual(PUMS_CSV_NAME[2017], "psam_p06.csv")
+        self.assertEqual(PUMS_CSV_NAME[2016], "ss16pca.csv")
+
+    def test_default_run_still_uses_census_download(self):
+        self.assertIsNone(parse_args([]).raw_dir)
+
+    def test_raw_dir_flag_is_parsed(self):
+        self.assertEqual(parse_args(["--raw-dir", "files"]).raw_dir, Path("files"))
+
+    def test_missing_year_directory_is_rejected(self):
+        self.raw_dir.mkdir()
+        with self.assertRaises(FileNotFoundError):
+            resolve_local_raw_source(self.raw_dir, 2016)
+
+    def test_empty_year_directory_is_rejected(self):
+        (self.raw_dir / "2017").mkdir(parents=True)
+        with self.assertRaises(FileNotFoundError):
+            resolve_local_raw_source(self.raw_dir, 2017)
+
+    def test_census_zip_is_preferred_over_extracted_csv(self):
+        year_dir = self.raw_dir / "2017"
+        csv_path = write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2017])
+        zip_path = write_zip(csv_path, year_dir / "csv_pca.zip")
+        self.assertEqual(resolve_local_raw_source(self.raw_dir, 2017), zip_path)
+
+    def test_extracted_csv_is_used_when_no_zip_exists(self):
+        year_dir = self.raw_dir / "2016"
+        csv_path = write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2016])
+        self.assertEqual(resolve_local_raw_source(self.raw_dir, 2016), csv_path)
+
+    def test_staging_extracts_zip_into_folktables_layout(self):
+        year_dir = self.raw_dir / "2017"
+        csv_path = write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2017])
+        zip_path = write_zip(csv_path, year_dir / "csv_pca.zip")
+        source_bytes = zip_path.read_bytes()
+
+        record = stage_local_raw(self.raw_dir, 2017, self.dest)
+
+        staged = self.dest / "2017" / "1-Year" / PUMS_CSV_NAME[2017]
+        self.assertEqual(Path(record["staged_csv"]), staged)
+        self.assertEqual(staged.read_text(encoding="utf-8"), csv_path.read_text(encoding="utf-8"))
+        self.assertEqual(record["source_sha256"], hashlib.sha256(source_bytes).hexdigest())
+        self.assertEqual(record["staged_csv_sha256"], hashlib.sha256(staged.read_bytes()).hexdigest())
+        self.assertEqual(record["mode"], "local_file")
+        self.assertEqual(zip_path.read_bytes(), source_bytes, "source zip must not be modified")
+        self.assertEqual(list((self.dest / "2017" / "1-Year").glob("*.staging")), [])
+
+    def test_staging_accepts_extracted_csv_for_2016_naming(self):
+        year_dir = self.raw_dir / "2016"
+        write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2016])
+        record = stage_local_raw(self.raw_dir, 2016, self.dest)
+        self.assertTrue(Path(record["staged_csv"]).is_file())
+        self.assertEqual(Path(record["staged_csv"]).name, "ss16pca.csv")
+
+    def test_unrelated_files_are_not_accepted_as_pums_sources(self):
+        year_dir = self.raw_dir / "2017"
+        year_dir.mkdir(parents=True)
+        (year_dir / "some_other_dataset.csv").write_text("SERIALNO,ST\\nX,6\\n", encoding="utf-8")
+        (year_dir / "some_other_dataset.zip").write_bytes(b"not a census archive")
+        with self.assertRaises(FileNotFoundError):
+            resolve_local_raw_source(self.raw_dir, 2017)
+
+    def test_zip_without_exact_folktables_member_is_rejected(self):
+        year_dir = self.raw_dir / "2017"
+        other_csv = write_synthetic_pums_csv(year_dir / "not_psam_p06.csv")
+        write_zip(other_csv, year_dir / "csv_pca.zip")
+        with self.assertRaisesRegex(ValueError, "psam_p06.csv"):
+            stage_local_raw(self.raw_dir, 2017, self.dest)
+        self.assertFalse((self.dest / "2017" / "1-Year" / "psam_p06.csv").exists())
+
+    def test_corrupt_zip_does_not_leave_staging_file(self):
+        year_dir = self.raw_dir / "2017"
+        year_dir.mkdir(parents=True)
+        (year_dir / "csv_pca.zip").write_bytes(b"not a zip file")
+        with self.assertRaises(zipfile.BadZipFile):
+            stage_local_raw(self.raw_dir, 2017, self.dest)
+        target_dir = self.dest / "2017" / "1-Year"
+        self.assertFalse(list(target_dir.glob("*.staging")))
+
+    def test_staging_rejects_file_without_required_columns(self):
+        year_dir = self.raw_dir / "2017"
+        write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2017], drop="ADJINC")
+        with self.assertRaises(KeyError):
+            stage_local_raw(self.raw_dir, 2017, self.dest)
+        self.assertFalse((self.dest / "2017" / "1-Year" / PUMS_CSV_NAME[2017]).exists())
+
+    def test_staging_rejects_header_only_file(self):
+        year_dir = self.raw_dir / "2017"
+        write_synthetic_pums_csv(year_dir / PUMS_CSV_NAME[2017], rows=0)
+        with self.assertRaises(ValueError):
+            stage_local_raw(self.raw_dir, 2017, self.dest)
+
+
+class TestRuntimeEnvWriter(unittest.TestCase):
+    """The generated runtime block must never erase hand-written environment history."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.path = Path(self._tmp.name) / "ENV.md"
+        self.path.write_text("# M0.1 environment status\n\nHand-written history.\n", encoding="utf-8")
+
+    def test_first_run_appends_block_and_keeps_history(self):
+        write_runtime_env(self.path, "- Python: 3.13.5")
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("Hand-written history.", text)
+        self.assertIn(ENV_BEGIN, text)
+        self.assertIn("- Python: 3.13.5", text)
+
+    def test_second_run_replaces_block_without_duplicating(self):
+        write_runtime_env(self.path, "- Python: 3.13.5")
+        write_runtime_env(self.path, "- Python: 3.13.6")
+        text = self.path.read_text(encoding="utf-8")
+        self.assertEqual(text.count(ENV_BEGIN), 1)
+        self.assertEqual(text.count(ENV_END), 1)
+        self.assertIn("Hand-written history.", text)
+        self.assertIn("- Python: 3.13.6", text)
+        self.assertNotIn("- Python: 3.13.5", text)
+
+    def test_marker_mentioned_in_prose_is_not_a_block_delimiter(self):
+        self.path.write_text(
+            "# M0.1 environment status\n\n"
+            f"A generated block, delimited by `{ENV_BEGIN}` and `{ENV_END}`, holds the runtime record.\n"
+            "Second hand-written paragraph.\n",
+            encoding="utf-8",
+        )
+        write_runtime_env(self.path, "- Python: 3.13.5")
+        write_runtime_env(self.path, "- Python: 3.13.6")
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("Second hand-written paragraph.", text)
+        self.assertIn("- Python: 3.13.6", text)
+        self.assertNotIn("- Python: 3.13.5", text)
+        self.assertEqual(text.count(f"{ENV_BEGIN}\n- Run") + text.count(f"{ENV_BEGIN}\n- Python"), 1)
+
+    def test_duplicated_marker_lines_append_instead_of_destroying_history(self):
+        self.path.write_text(
+            f"{ENV_BEGIN}\n- stale\n{ENV_END}\n\nHand-written after the block.\n"
+            f"{ENV_BEGIN}\n- second stray block\n{ENV_END}\n",
+            encoding="utf-8",
+        )
+        write_runtime_env(self.path, "- Python: 3.13.5")
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("Hand-written after the block.", text)
+        self.assertIn("- stale", text)
+        self.assertIn("- Python: 3.13.5", text)
+
+    def test_block_can_be_replaced_inside_existing_history(self):
+        write_runtime_env(self.path, "- Python: 3.13.5")
+        self.path.write_text(
+            self.path.read_text(encoding="utf-8") + "\nLater hand-written note.\n", encoding="utf-8"
+        )
+        write_runtime_env(self.path, "- Python: 3.13.7")
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("Later hand-written note.", text)
+        self.assertIn("- Python: 3.13.7", text)
 
 
 if __name__ == "__main__":

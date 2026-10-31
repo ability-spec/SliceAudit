@@ -14,6 +14,11 @@
 
 ## Environment blocker
 
+> **2026-10-31 addendum:** this execution record is unchanged, but the PyPI/DNS failure below did
+> not reproduce in a later container. The blocker that did reproduce is Census access, plus the
+> absence of a Python 3.13 interpreter. See [`ENV.md`](ENV.md) for the dated history. A real run
+> overwrites this file with the actual report.
+
 The required command `uv sync --python 3.13` created a project virtual environment but could not resolve the Folktables package index:
 
 ```text

@@ -11,6 +11,7 @@
 - Apply the Folktables task filter and descriptive task summaries only to train/validation at M0.1. Discovery and confirmation receive only raw household split assignments; do not inspect their labels/features or compute metrics.
 - Preserve `SERIALNO`, `PWGTP`, and `ST`; retain `SPORDER` and `ADJINC` where available.
 - Compare train/validation OCCP and POBP code sets across years; report row counts, positive-class share, missingness, feature cardinality, and household-size distribution.
+- The two Census PUMS archives may be obtained by hand instead of by the script (`--raw-dir`). This changes only how the same bytes reach `ACSDataSource`; the split, the firewall, and the reporting contract are unchanged. Offline mode records each source file's SHA-256 but does not verify it against an upstream checksum, and substituting a different dataset, year, or state remains forbidden. Offline staging checks the required columns and that every row is California (`ST = 06`), but it cannot verify which survey year a hand-supplied file actually contains; that is the operator's responsibility.
 - Save household assignments as `splits.parquet` with its SHA-256 checksum. Test household isolation and row-order invariance.
 - If Folktables does not install or work on Python 3.13, stop and report the error. Do not silently substitute Python 3.12, OpenML, or a hand-written task implementation.
 

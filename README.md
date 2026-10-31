@@ -12,7 +12,7 @@ The intended workflow separates slice discovery from independent confirmation, a
 
 <small>Research prototype — M0/M0.1 only. No model comparison results are claimed.</small>
 
-The current work establishes a data and split audit for the ACSIncome task using California ACS PUMS 2016 and 2017 records. The real data download and Parquet export have **not** been completed in the current environment because package-index access was unavailable. See [`research/m0/01_data_report.md`](research/m0/01_data_report.md) and [`research/m0/ENV.md`](research/m0/ENV.md).
+The current work establishes a data and split audit for the ACSIncome task using California ACS PUMS 2016 and 2017 records. The real data download and Parquet export have **not** been completed: no executed environment has had both a supported interpreter and Census access. See [`research/m0/01_data_report.md`](research/m0/01_data_report.md) and the dated execution history in [`research/m0/ENV.md`](research/m0/ENV.md).
 
 No model has been trained, no discovery or confirmation metrics have been calculated, and no ManimGX video has been rendered. The animation fixture is synthetic and labelled accordingly.
 
@@ -32,9 +32,10 @@ research/m0/
   PROTOCOL_REVISIONS.md   Statistical and data-firewall decisions required before M0.2
   prereg.yaml             Preregistration draft; unresolved owner decisions remain TODOs
   prepare_m0.py           Household split, safe-partition audit, Parquet manifest, report
-  test_split_logic.py     Determinism, household isolation, and held-out filter guard tests
+                          (Census download by default, --raw-dir for a fully offline run)
+  test_split_logic.py     Determinism, household isolation, held-out filter guard, offline staging, ENV history
   01_data_report.md       Honest record of what has and has not run
-  ENV.md                 Environment status and reproduction instructions
+  ENV.md                  Dated execution history plus the generated runtime block
 
 manimgx_poc/
   fixture.json            Synthetic paired-flip fixture
@@ -53,7 +54,20 @@ uv run python research/m0/test_split_logic.py
 uv run python research/m0/prepare_m0.py
 ```
 
-The preparation script assigns households using a salted SHA-256 hash of `SERIALNO` before applying the Folktables task filter. Raw PUMS data is fetched so household membership can be assigned, but only train/validation rows are passed into `adult_filter`, `ACSIncome.df_to_pandas`, or task-level diagnostic summaries. Discovery and confirmation feature/outcome values are not analyzed at M0.1.
+If Census access is unavailable but the two PUMS archives were downloaded elsewhere, run the
+same audit fully offline:
+
+```powershell
+uv run python research/m0/prepare_m0.py --raw-dir C:\pums
+```
+
+`C:\pums\2016\csv_pca.zip` and `C:\pums\2017\csv_pca.zip` (both years share the Census file
+name), or the already-extracted `ss16pca.csv` / `psam_p06.csv`. Offline mode never touches the
+network: it validates each file, stages it under the exact name Folktables expects, and records
+its SHA-256 in `split_manifest.json`, `ENV.md`, and `01_data_report.md`. It does not verify the
+files against an upstream checksum, so the operator is responsible for the download.
+
+The preparation script assigns households using a salted SHA-256 hash of `SERIALNO` before applying the Folktables task filter. Raw PUMS data is either downloaded by Folktables or staged from the exact Census archives supplied with `--raw-dir`; only train/validation rows are passed into `adult_filter`, `ACSIncome.df_to_pandas`, or task-level diagnostic summaries. Offline staging accepts only the expected year-specific CSV or `csv_pca.zip` containing that exact CSV member. Discovery and confirmation feature/outcome values are not analyzed at M0.1.
 
 The script writes a household split manifest, its SHA-256 digest, a runtime copy of the Folktables task definition, an environment record, and a train/validation-only report. It intentionally fails if Folktables or PyArrow is missing; it does not substitute another dataset or silently fall back to CSV.
 
@@ -63,7 +77,7 @@ ManimGX is kept out of the statistical environment. Follow [`manimgx_poc/README.
 
 ## Research gate
 
-Do not start model training (M0.2) until the protocol revisions have been reviewed, owner decisions in `prereg.yaml` are resolved, and the cluster-aware confirmation test has been calibrated by simulation. The current draft is a research plan, not a validated statistical method or production monitoring system.
+Do not start model training (M0.2) until the protocol and owner decisions in `prereg.yaml` have been reviewed, the preregistration is frozen, and the registered confirmation and interval-coverage checks have been validated. The current draft is a research plan, not a validated statistical method or production monitoring system.
 
 ## Sources
 
