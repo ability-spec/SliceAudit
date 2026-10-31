@@ -228,8 +228,14 @@ def _callable_source(value: Any) -> str:
         return f"<source unavailable; callable repr={value!r}>"
 
 
-def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame):
-    """Apply Folktables task conversion only to train/validation household rows."""
+def describe_safe_partition(
+    raw: pd.DataFrame, year: int, manifest: pd.DataFrame
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Build and summarize ACSIncome rows from train/validation households only.
+
+    The returned task frame contains no discovery or confirmation feature/target values.
+    It preserves household, weight, state, and source-row identifiers for auditing.
+    """
     from folktables import ACSIncome, adult_filter
 
     safe_ids = set(manifest.loc[
@@ -240,14 +246,49 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
     if safe_raw.empty:
         raise RuntimeError(f"No train/validation raw rows for {year}")
 
-    _features, labels, _groups = ACSIncome.df_to_pandas(safe_raw)
-    filtered = adult_filter(safe_raw.copy())
+    features, labels, groups = ACSIncome.df_to_pandas(safe_raw.copy())
+    filtered = adult_filter(safe_raw.copy()).copy()
     actual = _labels_as_series(labels, year)
-    if len(filtered) != len(actual):
-        raise AssertionError(f"Folktables row mismatch for {year}: {len(filtered)} vs {len(actual)}")
+    if not isinstance(features, pd.DataFrame):
+        raise TypeError(f"ACSIncome features for {year} must be a pandas DataFrame")
+    if list(features.columns) != FEATURES:
+        raise AssertionError(
+            f"ACSIncome feature columns changed for {year}: {list(features.columns)}"
+        )
+    if len(filtered) != len(features) or len(filtered) != len(actual) or len(filtered) != len(groups):
+        raise AssertionError(
+            f"Folktables row mismatch for {year}: filtered={len(filtered)}, "
+            f"features={len(features)}, labels={len(actual)}, groups={len(groups)}"
+        )
+
     expected = filtered["PINCP"].gt(50_000).astype(int).reset_index(drop=True)
     if not expected.equals(actual):
         raise AssertionError(f"Target mismatch: ACSIncome is not PINCP > 50000 for {year}")
+
+    split_lookup = (
+        manifest.loc[manifest["year"] == year]
+        .set_index("SERIALNO")["split"]
+    )
+    metadata_columns = ["SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC"]
+    task_metadata = filtered.loc[:, metadata_columns].reset_index(drop=True).copy()
+    task_metadata["split"] = (
+        task_metadata["SERIALNO"].astype(str).str.strip().map(split_lookup)
+    )
+    if task_metadata["split"].isna().any():
+        raise AssertionError(f"Eligible rows without a household split assignment for {year}")
+    if not task_metadata["split"].isin(["train", "validation"]).all():
+        raise AssertionError(f"Held-out rows entered the ACSIncome task artifact for {year}")
+
+    task_frame = pd.concat(
+        [
+            task_metadata,
+            features.reset_index(drop=True),
+            actual.rename("target"),
+        ],
+        axis=1,
+    )
+    if task_frame.columns.duplicated().any():
+        raise AssertionError(f"Duplicate columns in ACSIncome artifact for {year}")
 
     stats = {
         "year": year,
@@ -270,12 +311,10 @@ def describe_safe_partition(raw: pd.DataFrame, year: int, manifest: pd.DataFrame
         "eligible_by_split": {},
     }
     for name in ("train", "validation"):
-        ids = set(manifest.loc[(manifest.year == year) & (manifest.split == name), "SERIALNO"])
-        stats["eligible_by_split"][name] = int(
-            filtered["SERIALNO"].astype(str).str.strip().isin(ids).sum()
-        )
-    return stats
-
+        stats["eligible_by_split"][name] = int(task_frame["split"].eq(name).sum())
+    if sum(stats["eligible_by_split"].values()) != len(task_frame):
+        raise AssertionError(f"Train/validation row counts do not sum to the task artifact for {year}")
+    return stats, task_frame
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -347,7 +386,30 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     manifest = pd.concat(manifests, ignore_index=True)
     assert_no_household_leakage(manifest)
-    stats = {year: describe_safe_partition(frames[year], year, manifest) for year in (2016, 2017)}
+    stats, task_frames = {}, {}
+    for year in (2016, 2017):
+        stats[year], task_frames[year] = describe_safe_partition(
+            frames[year], year, manifest
+        )
+
+    task_output_dir = DATA_DIR / "processed"
+    task_output_dir.mkdir(parents=True, exist_ok=True)
+    task_artifacts = {}
+    for year in (2016, 2017):
+        task_path = task_output_dir / f"acs_income_train_validation_{year}.parquet"
+        task_frames[year].to_parquet(task_path, index=False)
+        task_digest = _sha256_file(task_path)
+        task_digest_path = task_path.with_suffix(task_path.suffix + ".sha256")
+        task_digest_path.write_text(
+            f"{task_digest}  {task_path.name}\n", encoding="utf-8"
+        )
+        task_artifacts[str(year)] = {
+            "path": task_path.relative_to(OUT).as_posix(),
+            "rows": int(len(task_frames[year])),
+            "columns": list(task_frames[year].columns),
+            "scope": "train+validation only",
+            "sha256": task_digest,
+        }
 
     parquet_path = OUT / "splits.parquet"
     manifest.to_parquet(parquet_path, index=False)
@@ -368,6 +430,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "eligible_person_counts_train_validation": {
             str(y): stats[y]["eligible_by_split"] for y in (2016, 2017)
         },
+        "acs_income_task_artifacts": task_artifacts,
         "splits_parquet_sha256": digest,
         "heldout_task_rows_inspected": False,
     }
@@ -410,6 +473,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "- Offline mode does not verify the upstream Census checksum; the operator must confirm the files.",
         "",
     ])
+    lines.extend([
+        "## Saved ACSIncome task artifacts",
+        "",
+        "- Files contain only task-eligible train/validation persons and preserve SERIALNO, SPORDER, PWGTP, ST, ADJINC, and split assignment.",
+        "- Discovery and confirmation household rows are excluded before the Folktables task filter and are not present in these artifacts.",
+        "",
+    ])
+    for year in (2016, 2017):
+        artifact = task_artifacts[str(year)]
+        lines.append(
+            f"- {year}: `{artifact['path']}` ({artifact['rows']:,} rows, "
+            f"SHA-256 `{artifact['sha256']}`)"
+        )
+    lines.append("")
     for year in (2016, 2017):
         lines.extend([
             f"## {year}",

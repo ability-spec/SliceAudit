@@ -69,7 +69,7 @@ files against an upstream checksum, so the operator is responsible for the downl
 
 The preparation script assigns households using a salted SHA-256 hash of `SERIALNO` before applying the Folktables task filter. Raw PUMS data is either downloaded by Folktables or staged from the exact Census archives supplied with `--raw-dir`; only train/validation rows are passed into `adult_filter`, `ACSIncome.df_to_pandas`, or task-level diagnostic summaries. Offline staging accepts only the expected year-specific CSV or `csv_pca.zip` containing that exact CSV member. Discovery and confirmation feature/outcome values are not analyzed at M0.1.
 
-The script writes a household split manifest, its SHA-256 digest, a runtime copy of the Folktables task definition, an environment record, and a train/validation-only report. It intentionally fails if Folktables or PyArrow is missing; it does not substitute another dataset or silently fall back to CSV.
+The script writes a household split manifest and checksum, train/validation-only ACSIncome Parquet datasets for each year (with SERIALNO, SPORDER, PWGTP, ST, ADJINC, split, features, and target), checksums for those datasets, a runtime copy of the Folktables task definition, an environment record, and a train/validation-only report. It intentionally fails if Folktables or PyArrow is missing; it does not substitute another dataset or silently fall back to CSV.
 
 ## ManimGX proof of concept
 

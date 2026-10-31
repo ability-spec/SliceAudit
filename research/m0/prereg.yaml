@@ -154,5 +154,9 @@ m0_1:
     - splits.parquet
     - splits.parquet.sha256
     - split_manifest.json
+    - data/processed/acs_income_train_validation_2016.parquet
+    - data/processed/acs_income_train_validation_2016.parquet.sha256
+    - data/processed/acs_income_train_validation_2017.parquet
+    - data/processed/acs_income_train_validation_2017.parquet.sha256
     - folktables_definition.txt
     - ENV.md

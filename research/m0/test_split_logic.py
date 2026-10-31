@@ -148,13 +148,27 @@ class TestM01Firewall(unittest.TestCase):
 
         self.assertTrue(seen)
         self.assertTrue(set(seen).issubset(allowed))
-        if isinstance(result, tuple):
-            stats, filtered = result
-            self.assertTrue(set(filtered["SERIALNO"].astype(str)).issubset(allowed))
-            self.assertEqual(stats["eligible_train_validation_person_rows"], len(filtered))
-        else:
-            stats = result
-            self.assertEqual(stats["eligible_person_rows"], stats["raw_person_rows"])
+        self.assertIsInstance(result, tuple)
+        stats, task_frame = result
+        self.assertTrue(set(task_frame["SERIALNO"].astype(str)).issubset(allowed))
+        self.assertTrue(set(task_frame["split"]).issubset({"train", "validation"}))
+        self.assertEqual(stats["eligible_person_rows"], len(task_frame))
+        self.assertEqual(
+            set(["SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "split", *FEATURES, "target"]),
+            set(task_frame.columns),
+        )
+        self.assertTrue(task_frame["target"].isin([0, 1]).all())
+        self.assertTrue((task_frame["ST"].astype(str).str.zfill(2) == "06").all())
+        self.assertEqual(
+            stats["eligible_by_split"],
+            task_frame["split"].value_counts().to_dict(),
+        )
+        self.assertTrue(
+            (
+                task_frame["target"].to_numpy()
+                == task_frame["SPORDER"].eq(1).astype(int).to_numpy()
+            ).all()
+        )
 
 
 class TestOfflineRawMode(unittest.TestCase):
