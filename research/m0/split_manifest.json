@@ -1,0 +1,100 @@
+{
+  "salt": "sliceaudit-acsincome-ca-2016-2017-v1",
+  "assignment": "SHA256(salt + SERIALNO) mod 10000",
+  "unit": "household",
+  "raw_data_acquisition": "local_files",
+  "raw_source": {
+    "2016": {
+      "mode": "local_file",
+      "source_path": "/Users/qobiljonerkinjonov/Desktop/SliceAudit/2016/csv_pca.zip",
+      "source_sha256": "a434bf9316f174d896766488cd5fd4ae7356a9512258321110b62110c6ded818",
+      "source_bytes": 75148888,
+      "staged_csv": "/Users/qobiljonerkinjonov/Desktop/SliceAudit-repo/research/m0/data/2016/1-Year/ss16pca.csv",
+      "staged_csv_sha256": "9d8b7eb28baa74a88537d3f429b0a361cc36e8c60f67c25d52cac1fb0a7d5c1a"
+    },
+    "2017": {
+      "mode": "local_file",
+      "source_path": "/Users/qobiljonerkinjonov/Desktop/SliceAudit/2017/csv_pca.zip",
+      "source_sha256": "d28c43dabd5fdc0abcba3d0941101bf6eceda4a84c1bdd269982adb8b89d6617",
+      "source_bytes": 74948023,
+      "staged_csv": "/Users/qobiljonerkinjonov/Desktop/SliceAudit-repo/research/m0/data/2017/1-Year/psam_p06.csv",
+      "staged_csv_sha256": "40673d247f4d3730d5a75c48957a9911b54ebbd61ab5ba7b8ae415d401cf1c2e"
+    }
+  },
+  "households_by_year_and_split": {
+    "2016": {
+      "train": 126075,
+      "validation": 22210
+    },
+    "2017": {
+      "train": 74708,
+      "confirmation": 29856,
+      "discovery": 29723,
+      "validation": 15133
+    }
+  },
+  "eligible_person_counts_train_validation": {
+    "2016": {
+      "train": 161751,
+      "validation": 28436
+    },
+    "2017": {
+      "train": 96464,
+      "validation": 19628
+    }
+  },
+  "acs_income_task_artifacts": {
+    "2016": {
+      "path": "data/processed/acs_income_train_validation_2016.parquet",
+      "rows": 190187,
+      "columns": [
+        "SERIALNO",
+        "SPORDER",
+        "PWGTP",
+        "ST",
+        "ADJINC",
+        "split",
+        "AGEP",
+        "COW",
+        "SCHL",
+        "MAR",
+        "OCCP",
+        "POBP",
+        "RELP",
+        "WKHP",
+        "SEX",
+        "RAC1P",
+        "target"
+      ],
+      "scope": "train+validation only",
+      "sha256": "e8469c68f878a33562243a812e0636411e2cdf8f06047a572d76fc2110718420"
+    },
+    "2017": {
+      "path": "data/processed/acs_income_train_validation_2017.parquet",
+      "rows": 116092,
+      "columns": [
+        "SERIALNO",
+        "SPORDER",
+        "PWGTP",
+        "ST",
+        "ADJINC",
+        "split",
+        "AGEP",
+        "COW",
+        "SCHL",
+        "MAR",
+        "OCCP",
+        "POBP",
+        "RELP",
+        "WKHP",
+        "SEX",
+        "RAC1P",
+        "target"
+      ],
+      "scope": "train+validation only",
+      "sha256": "32ca96ac7e939f12d7f0f57fc3552ab7ae2660360555333b653baf17c0b73810"
+    }
+  },
+  "splits_parquet_sha256": "62f5cd7e2512fa10857faee44dcf30c7ef328bb681f1bc0eb8f08a079bf506c2",
+  "heldout_task_rows_inspected": false
+}

@@ -110,3 +110,21 @@ uv run python research/m0/prepare_m0.py --raw-dir C:\pums
 `psam_p06.csv`). Offline mode records the SHA-256 of each source file in `split_manifest.json`,
 `ENV.md`, and `01_data_report.md`; it does not verify them against an upstream checksum, so the
 operator must confirm the download.
+
+## Generated runtime record
+
+<!-- BEGIN GENERATED: m0_1_runtime -->
+- Run date (UTC): 2026-11-01T17:05:50+00:00
+- Python: 3.13.18
+- numpy: 2.5.4
+- scipy: 1.18.1
+- pandas: 3.1.0
+- pyarrow: 26.0.0
+- scikit-learn: 1.9.1
+- folktables: 0.0.12
+- Raw data acquisition: local_files (offline)
+- 2016 source: `/Users/qobiljonerkinjonov/Desktop/SliceAudit/2016/csv_pca.zip` sha256 `a434bf9316f174d896766488cd5fd4ae7356a9512258321110b62110c6ded818`
+- 2017 source: `/Users/qobiljonerkinjonov/Desktop/SliceAudit/2017/csv_pca.zip` sha256 `d28c43dabd5fdc0abcba3d0941101bf6eceda4a84c1bdd269982adb8b89d6617`
+
+Review the installed Folktables version and task filter before accepting this report.
+<!-- END GENERATED: m0_1_runtime -->
