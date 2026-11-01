@@ -110,3 +110,53 @@ uv run python research/m0/prepare_m0.py --raw-dir C:\pums
 `psam_p06.csv`). Offline mode records the SHA-256 of each source file in `split_manifest.json`,
 `ENV.md`, and `01_data_report.md`; it does not verify them against an upstream checksum, so the
 operator must confirm the download.
+## 2026-11-01 — third check in the current execution container
+
+**Status: blocked before Folktables installation and before Census data access.** This
+container has the required Python 3.13 interpreter, but DNS resolution prevents dependency
+installation and access to the Census source.
+
+### Environment observed
+
+- Python interpreter: `3.13.5`
+- uv: `0.10.0`
+- NumPy: `2.3.5`
+- pandas: `2.2.3`
+- SciPy: `1.17.0`
+- scikit-learn: `1.8.0`
+- PyArrow: not installed
+- Folktables: not installed
+
+### Network and dependency probe
+
+- `curl -I https://pypi.org/simple/folktables/`: DNS resolution failed (`Could not resolve host: pypi.org`).
+- `uv pip install --python /opt/pyvenv/bin/python folktables==0.0.12 pyarrow>=17 --dry-run`: failed while fetching the PyArrow package index because DNS resolution failed.
+- `curl -I -L https://www2.census.gov/programs-surveys/acs/data/pums/2017/1-Year/csv_pca.zip`: DNS resolution failed (`Could not resolve host: www2.census.gov`).
+
+This confirms an environment network/DNS blocker. It does not establish an incompatibility
+between Folktables and Python 3.13.
+
+### Completed
+
+- Confirmed Python 3.13.5 and uv 0.10.0 are available in this container.
+- Confirmed the dependency and Census hosts are not resolvable from this container.
+- The GitHub Actions `tests` workflow for commit
+  [`d365ad9`](https://github.com/ability-spec/SliceAudit/commit/d365ad93627de1a4a994724053512006e7f1a4b0)
+  completed successfully on 2026-10-31. This is code/fixture CI only; it is not an M0.1 data run.
+
+### Not completed
+
+- Folktables or PyArrow installation in this container.
+- Local execution of `test_split_logic.py` or `prepare_m0.py` in this container.
+- Census PUMS downloads for CA 2016 or 2017.
+- Real row counts, positive-class rates, missingness/cardinality summaries,
+  OCCP/POBP comparisons, or household-size distributions.
+- `splits.parquet`, its checksum, `split_manifest.json`, or train/validation task Parquet files.
+- No discovery or confirmation task values were inspected; no model training or metrics were run.
+
+### Next action
+
+Repeat M0.1 on a network-enabled Python 3.13 machine, or provide the exact Census CA
+PUMS archives for 2016 and 2017 under the documented `--raw-dir` layout. Install the
+declared project dependencies first. Then run the documented split tests and
+`prepare_m0.py`; stop for owner review after inspecting the generated artifacts.
