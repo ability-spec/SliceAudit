@@ -1,8 +1,9 @@
 # M0.1 environment status
 
-M0.1 has not produced empirical artifacts yet. This file is the audit trail of every
-execution environment that was tried, oldest first. The last section is authoritative
-for the environment currently in use.
+The real-data M0.1 audit completed on 2026-11-01. This file preserves every execution
+environment that was tried, oldest first; earlier blocked attempts are historical records,
+not the current project status. The generated runtime block at the end is authoritative
+for the completed data run.
 
 On a successful run `prepare_m0.py` writes one generated block, delimited by the
 `m0_1_runtime` HTML comment markers. Everything outside those markers is hand-written history
@@ -107,14 +108,16 @@ uv run python research/m0/prepare_m0.py --raw-dir C:\pums
 ```
 
 `C:\pums\2016\csv_pca.zip` and `C:\pums\2017\csv_pca.zip` (or the extracted `ss16pca.csv` /
-`psam_p06.csv`). Offline mode records the SHA-256 of each source file in `split_manifest.json`,
-`ENV.md`, and `01_data_report.md`; it does not verify them against an upstream checksum, so the
-operator must confirm the download.
+`psam_p06.csv`) using the same audit contract. Offline mode records the SHA-256 of each source file
+in `split_manifest.json`, `ENV.md`, and `01_data_report.md`; it does not verify them against an
+upstream checksum, so the operator must confirm the download.
 
 ## Generated runtime record
 
 <!-- BEGIN GENERATED: m0_1_runtime -->
 - Run date (UTC): 2026-11-01T17:05:50+00:00
+- Source revision: `418617a46dbe9925431791241e6044a7479e5197`
+- Execution command: `uv run python research/m0/prepare_m0.py --raw-dir <PUMS_ROOT>`
 - Python: 3.13.18
 - numpy: 2.5.4
 - scipy: 1.18.1
@@ -123,8 +126,8 @@ operator must confirm the download.
 - scikit-learn: 1.9.1
 - folktables: 0.0.12
 - Raw data acquisition: local_files (offline)
-- 2016 source: `/Users/qobiljonerkinjonov/Desktop/SliceAudit/2016/csv_pca.zip` sha256 `a434bf9316f174d896766488cd5fd4ae7356a9512258321110b62110c6ded818`
-- 2017 source: `/Users/qobiljonerkinjonov/Desktop/SliceAudit/2017/csv_pca.zip` sha256 `d28c43dabd5fdc0abcba3d0941101bf6eceda4a84c1bdd269982adb8b89d6617`
+- 2016 source: `operator-supplied/2016/csv_pca.zip` sha256 `a434bf9316f174d896766488cd5fd4ae7356a9512258321110b62110c6ded818`
+- 2017 source: `operator-supplied/2017/csv_pca.zip` sha256 `d28c43dabd5fdc0abcba3d0941101bf6eceda4a84c1bdd269982adb8b89d6617`
 
 Review the installed Folktables version and task filter before accepting this report.
 <!-- END GENERATED: m0_1_runtime -->
