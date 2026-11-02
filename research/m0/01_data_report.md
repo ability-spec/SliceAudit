@@ -56,7 +56,7 @@ Files contain only task-eligible train/validation people and preserve `SERIALNO`
 | --- | ---: | ---: |
 | Raw train/validation person rows | 376,035 | 227,116 |
 | Eligible person rows | 190,187 | 116,092 |
-| Unweighted eligibility rate | 0.505721 | 0.511187 |
+| Unweighted eligibility rate | 0.505769 | 0.511157 |
 | Unweighted positive rate | 0.381340 | 0.397082 |
 | `PWGTP`-weighted positive rate | — | — |
 | Unique households in safe raw rows | 148,285 | 89,841 |

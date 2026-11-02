@@ -28,6 +28,7 @@ import json
 import platform
 import re
 import shutil
+import subprocess
 import zipfile
 from datetime import datetime, timezone
 from importlib import metadata
@@ -109,6 +110,51 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _weighted_mean(values: Any, weights: Any) -> float:
+    """Return a weighted mean after aligning non-missing value/weight pairs."""
+    value_series = pd.Series(values).reset_index(drop=True)
+    weight_series = pd.Series(weights).reset_index(drop=True)
+    if len(value_series) != len(weight_series):
+        raise ValueError("Weighted-mean values and weights must have equal lengths")
+    valid = value_series.notna() & weight_series.notna()
+    if not valid.any():
+        return float("nan")
+    valid_weights = weight_series.loc[valid].astype(float)
+    if (valid_weights < 0).any():
+        raise ValueError("Weighted-mean weights must be non-negative")
+    total_weight = float(valid_weights.sum())
+    if total_weight <= 0:
+        return float("nan")
+    return float(np.average(value_series.loc[valid].astype(float), weights=valid_weights))
+
+
+def _portable_provenance(record: dict[str, Any], year: int) -> dict[str, Any]:
+    """Replace operator-specific local paths with stable, publishable labels."""
+    portable = dict(record)
+    if record.get("mode") == "local_file":
+        source_name = Path(str(record["source_path"])).name
+        portable["source_path"] = f"operator-supplied/{year}/{source_name}"
+        portable["staged_csv"] = f"data/{year}/1-Year/{PUMS_CSV_NAME[year]}"
+    return portable
+
+
+def _git_revision() -> str:
+    """Identify the source revision without making Git a runtime dependency."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=OUT,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    revision = result.stdout.strip()
+    return revision if result.returncode == 0 and revision else "unknown"
 
 
 def _missing_required_columns(columns: Sequence[str]) -> list[str]:
@@ -310,7 +356,11 @@ def describe_safe_partition(
         "scope": "train+validation only",
         "raw_person_rows": int(len(safe_raw)),
         "eligible_person_rows": int(len(filtered)),
-        "positive_rate": float(actual.mean()),
+        "eligible_rate_unweighted": float(len(filtered) / len(safe_raw)),
+        "positive_rate_unweighted": float(actual.mean()),
+        "positive_rate_pwgtp_weighted": _weighted_mean(
+            actual, filtered["PWGTP"].reset_index(drop=True)
+        ),
         "households": int(safe_raw["SERIALNO"].nunique()),
         "feature_missingness": {c: float(filtered[c].isna().mean()) for c in FEATURES},
         "feature_cardinality": {c: int(filtered[c].nunique(dropna=True)) for c in FEATURES},
@@ -330,6 +380,194 @@ def describe_safe_partition(
     if sum(stats["eligible_by_split"].values()) != len(task_frame):
         raise AssertionError(f"Train/validation row counts do not sum to the task artifact for {year}")
     return stats, task_frame
+
+def build_report(
+    *,
+    offline: bool,
+    provenance: dict[str, dict[str, Any]],
+    task_artifacts: dict[str, dict[str, Any]],
+    stats: dict[int, dict[str, Any]],
+    run_timestamp: str,
+    source_revision: str,
+    python_version: str,
+    versions: dict[str, str],
+    definition_text: str,
+) -> str:
+    """Render a self-contained M0.1 audit report without held-out task data."""
+    command = (
+        "uv run python research/m0/prepare_m0.py --raw-dir <PUMS_ROOT>"
+        if offline
+        else "uv run python research/m0/prepare_m0.py"
+    )
+
+    def rate(value: Any) -> str:
+        return "—" if value is None else f"{float(value):.6f}"
+
+    lines = [
+        "# M0.1 data report",
+        "",
+        "> **Status: M0.1 completed; model validation has not started.** "
+        "Train/validation summaries only. Discovery and confirmation task rows were not filtered or summarized.",
+        "",
+        "## Executive summary",
+        "",
+        "- The real California ACS PUMS 2016 and 2017 data-and-split audit completed using "
+        f"{'operator-supplied local archives' if offline else 'Folktables Census downloads'}.",
+        f"- Safe ACSIncome artifacts contain **{stats[2016]['eligible_person_rows']:,}** eligible "
+        f"train/validation people for 2016 and **{stats[2017]['eligible_person_rows']:,}** for 2017.",
+        "- Runtime checks confirmed household isolation, California-only input, the target rule, and "
+        "exclusion of discovery/confirmation rows from task filtering and artifacts.",
+        "- **Open provenance limitation:** local source hashes identify the exact bytes used, but offline "
+        "mode did not verify them against an upstream Census checksum.",
+        "- This report validates data preparation only. It contains no model comparison and provides no "
+        "empirical evidence yet for SliceAudit's hidden-regression claim.",
+        "",
+        "## Run and reproducibility",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+        f"| Run date (UTC) | `{run_timestamp}` |",
+        f"| Source revision | `{source_revision}` |",
+        f"| Execution command | `{command}` |",
+        f"| Python | `{python_version}` |",
+        f"| Key packages | Folktables `{versions['folktables']}`, pandas `{versions['pandas']}`, "
+        f"PyArrow `{versions['pyarrow']}`, NumPy `{versions['numpy']}` |",
+        "",
+        "The complete runtime record and earlier blocked attempts are in [`ENV.md`](ENV.md). Raw data, "
+        "split assignments, and processed Parquet files are intentionally not committed. Independent "
+        "verification therefore requires the source files and a rerun; recorded hashes support identity "
+        "checks but do not by themselves authenticate the upstream release.",
+        "",
+        "## Raw data provenance",
+        "",
+        f"- Acquisition mode: `{'local_files' if offline else 'census_download'}`",
+    ]
+    for year in (2016, 2017):
+        record = provenance[str(year)]
+        if record["mode"] == "local_file":
+            lines.append(
+                f"- {year}: `{record['source_path']}` ({record['source_bytes']:,} bytes; SHA-256 "
+                f"`{record['source_sha256']}`), staged as `{record['staged_csv']}`"
+            )
+        else:
+            lines.append(
+                f"- {year}: downloaded by Folktables from "
+                f"`https://www2.census.gov/programs-surveys/acs/data/pums/{year}/1-Year/{CENSUS_ZIP_NAME}`"
+            )
+    lines.extend([
+        "",
+        "Offline staging validates the expected file layout, required columns, and California state code. "
+        "It does not verify an upstream Census checksum or independently prove the survey year of a "
+        "hand-supplied archive; the operator remains responsible for source authenticity.",
+        "",
+        "## Audit checks",
+        "",
+        "| Check | Result | Basis |",
+        "| --- | --- | --- |",
+        "| Households assigned before task filtering | Pass | Split manifest is built from raw household IDs before `adult_filter`. |",
+        "| Household cross-split assignments | **0** | `assert_no_household_leakage` rejects duplicate or conflicting assignments. |",
+        "| Raw rows restricted to California | Pass | Every raw row must have `ST = 06`. |",
+        "| ACSIncome target rule | Pass | Labels must equal `PINCP > 50000` on safe rows. |",
+        "| Held-out task firewall | Pass | Only train/validation households enter task filtering and Parquet artifacts. |",
+        "| Row-order invariance | Covered by unit test | `test_split_logic.py` compares shuffled and original assignments. |",
+        "| Upstream Census source authentication | **Not verified** | No upstream checksum comparison was performed in offline mode. |",
+        "| Artifact SHA-256 values | Recorded | Values below identify the generated artifacts; they are not an independent rerun. |",
+        "",
+        "## Saved ACSIncome task artifacts",
+        "",
+        "Files contain only task-eligible train/validation people and preserve `SERIALNO`, `SPORDER`, "
+        "`PWGTP`, `ST`, `ADJINC`, and split assignment.",
+        "",
+    ])
+    for year in (2016, 2017):
+        artifact = task_artifacts[str(year)]
+        lines.append(
+            f"- {year}: `{artifact['path']}` ({artifact['rows']:,} rows; SHA-256 "
+            f"`{artifact['sha256']}`)"
+        )
+    lines.extend([
+        "",
+        "## Safe-partition summary",
+        "",
+        "| Metric | 2016 | 2017 |",
+        "| --- | ---: | ---: |",
+        f"| Raw train/validation person rows | {stats[2016]['raw_person_rows']:,} | {stats[2017]['raw_person_rows']:,} |",
+        f"| Eligible person rows | {stats[2016]['eligible_person_rows']:,} | {stats[2017]['eligible_person_rows']:,} |",
+        f"| Unweighted eligibility rate | {rate(stats[2016]['eligible_rate_unweighted'])} | {rate(stats[2017]['eligible_rate_unweighted'])} |",
+        f"| Unweighted positive rate | {rate(stats[2016]['positive_rate_unweighted'])} | {rate(stats[2017]['positive_rate_unweighted'])} |",
+        f"| `PWGTP`-weighted positive rate | {rate(stats[2016].get('positive_rate_pwgtp_weighted'))} | {rate(stats[2017].get('positive_rate_pwgtp_weighted'))} |",
+        f"| Unique households in safe raw rows | {stats[2016]['households']:,} | {stats[2017]['households']:,} |",
+        f"| Eligible train people | {stats[2016]['eligible_by_split']['train']:,} | {stats[2017]['eligible_by_split']['train']:,} |",
+        f"| Eligible validation people | {stats[2016]['eligible_by_split']['validation']:,} | {stats[2017]['eligible_by_split']['validation']:,} |",
+        "",
+        "**Comparability warning:** 2016 train/validation covers all assigned households (85% + 15%), "
+        "whereas 2017 train/validation covers 60% (50% + 10%). These counts are not full-year totals. "
+        "The positive-rate difference is descriptive only: it is not population-weighted unless explicitly "
+        "labelled, and the nominal `PINCP > 50000` target is not constant-purchasing-power comparable "
+        "across years. No US-population inference is made.",
+        "",
+    ])
+    if any(stats[y].get("positive_rate_pwgtp_weighted") is None for y in (2016, 2017)):
+        lines.extend([
+            "The original 2026-11-01 run calculated only unweighted positive rates, so weighted cells are "
+            "shown as unavailable rather than backfilled. The current generator calculates `PWGTP`-weighted "
+            "rates on subsequent runs.",
+            "",
+        ])
+    lines.extend([
+        "## Interpretation and implications",
+        "",
+        "- The code-set differences below are **observed support differences**, not evidence that Census "
+        "code definitions changed. Sparse categories can appear or disappear through sampling alone.",
+        "- Before model training, freeze the official OCCP major-group mapping and specify how unseen or "
+        "invalid codes are handled. Do not claim cross-year encoding drift solely from these lists.",
+        "- POBP is excluded from eligible slice features by default in the draft preregistration; its "
+        "support comparison remains a data audit, not a modeling result.",
+        "- The next research gate is protocol validation and preregistration freezing—not model training. "
+        "Owner-controlled values and interval-coverage checks remain unresolved.",
+        "",
+    ])
+    for year in (2016, 2017):
+        lines.extend([
+            f"## {year} detailed diagnostics",
+            "",
+            f"- Household-size quantiles (unweighted, safe raw rows): {json.dumps(stats[year]['household_size_quantiles'], sort_keys=True)}",
+            f"- Feature missingness: {json.dumps(stats[year]['feature_missingness'], sort_keys=True)}",
+            f"- Feature cardinality: {json.dumps(stats[year]['feature_cardinality'], sort_keys=True)}",
+            f"- Target missingness: {stats[year]['target_missingness']:.6f}",
+            "",
+        ])
+    for code in ("occ_codes", "pobp_codes"):
+        left = set(stats[2016][code])
+        right = set(stats[2017][code])
+        lines.extend([
+            f"## {code.upper()} code-set comparison (train/validation only)",
+            "",
+            f"- 2016 unique codes: {len(left)}",
+            f"- 2017 unique codes: {len(right)}",
+            f"- 2016 only: {json.dumps(sorted(left - right))}",
+            f"- 2017 only: {json.dumps(sorted(right - left))}",
+            "",
+        ])
+    lines.extend([
+        "## Remaining limitations and research gate",
+        "",
+        "- No model training, prediction generation, or discovery/confirmation metrics were produced.",
+        "- No inflation adjustment was applied; the primary target is nominal `PINCP > 50000`.",
+        "- Validate Newcombe score-interval coverage by simulation before relying on the interval procedure.",
+        "- McNemar's person-level independence assumption remains an explicit limitation under household "
+        "clustering; do not silently substitute another confirmation test.",
+        "- Resolve and freeze the preregistration's owner TODOs before M0.2.",
+        "",
+        "## Exact installed Folktables task definition",
+        "",
+        "```text",
+        definition_text.rstrip(),
+        "```",
+        "",
+    ])
+    return "\n".join(lines)
+
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -382,7 +620,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             source_kwargs["root_dir"] = str(DATA_DIR)
         source = ACSDataSource(**source_kwargs)
         if offline:
-            provenance[str(year)] = stage_local_raw(args.raw_dir, year, DATA_DIR)
+            staged_record = stage_local_raw(args.raw_dir, year, DATA_DIR)
+            provenance[str(year)] = _portable_provenance(staged_record, year)
             download = False
         else:
             provenance[str(year)] = {"mode": "census_download", "source": "www2.census.gov"}
@@ -435,10 +674,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         str(year): {str(k): int(v) for k, v in manifest.loc[manifest.year == year, "split"].value_counts().items()}
         for year in (2016, 2017)
     }
+    run_timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    source_revision = _git_revision()
+    python_version = platform.python_version()
+    versions = {
+        package: _version(package)
+        for package in ("numpy", "scipy", "pandas", "pyarrow", "scikit-learn", "folktables")
+    }
+    command = (
+        "uv run python research/m0/prepare_m0.py --raw-dir <PUMS_ROOT>"
+        if offline
+        else "uv run python research/m0/prepare_m0.py"
+    )
     payload = {
         "salt": SALT,
         "assignment": "SHA256(salt + SERIALNO) mod 10000",
         "unit": "household",
+        "run": {
+            "timestamp_utc": run_timestamp,
+            "source_revision": source_revision,
+            "python": python_version,
+            "command": command,
+        },
         "raw_data_acquisition": "local_files" if offline else "census_download",
         "raw_source": provenance,
         "households_by_year_and_split": split_counts,
@@ -447,14 +704,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
         "acs_income_task_artifacts": task_artifacts,
         "splits_parquet_sha256": digest,
+        "audit_checks": {
+            "household_cross_split_count": 0,
+            "california_only_raw_rows": True,
+            "target_rule_verified_on_safe_rows": True,
+            "heldout_task_rows_inspected": False,
+            "row_order_invariance": "unit_tested",
+            "upstream_checksum_verified": False,
+        },
         "heldout_task_rows_inspected": False,
     }
     (OUT / "split_manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
-    versions = {p: _version(p) for p in ("numpy", "scipy", "pandas", "pyarrow", "scikit-learn", "folktables")}
     env_body = "\n".join([
-        f"- Run date (UTC): {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
-        f"- Python: {platform.python_version()}",
+        f"- Run date (UTC): {run_timestamp}",
+        f"- Source revision: `{source_revision}`",
+        f"- Execution command: `{command}`",
+        f"- Python: {python_version}",
         *(f"- {k}: {v}" for k, v in versions.items()),
         f"- Raw data acquisition: {'local_files (offline)' if offline else 'census_download'}",
         *(f"- {y} source: `{provenance[str(y)].get('source_path', 'www2.census.gov')}` sha256 `{provenance[str(y)].get('source_sha256', 'n/a')}`" for y in (2016, 2017)),
@@ -462,92 +728,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         "Review the installed Folktables version and task filter before accepting this report.",
     ])
     write_runtime_env(OUT / "ENV.md", env_body)
-    lines = [
-        "# M0.1 data report",
-        "",
-        "> Train/validation summaries only. Discovery and confirmation task rows were not filtered or summarized.",
-        "",
-        "## Raw data provenance",
-        "",
-        f"- Acquisition mode: `{'local_files' if offline else 'census_download'}`",
-    ]
-    for year in (2016, 2017):
-        record = provenance[str(year)]
-        if record["mode"] == "local_file":
-            lines.append(
-                f"- {year}: local file `{record['source_path']}` "
-                f"({record['source_bytes']:,} bytes, sha256 `{record['source_sha256']}`), "
-                f"staged to `{record['staged_csv']}`"
-            )
-        else:
-            lines.append(
-                f"- {year}: downloaded by Folktables from "
-                f"`https://www2.census.gov/programs-surveys/acs/data/pums/{year}/1-Year/{CENSUS_ZIP_NAME}`"
-            )
-    lines.extend([
-        "- Offline mode does not verify the upstream Census checksum; the operator must confirm the files.",
-        "",
-    ])
-    lines.extend([
-        "## Saved ACSIncome task artifacts",
-        "",
-        "- Files contain only task-eligible train/validation persons and preserve SERIALNO, SPORDER, PWGTP, ST, ADJINC, and split assignment.",
-        "- Discovery and confirmation household rows are excluded before the Folktables task filter and are not present in these artifacts.",
-        "",
-    ])
-    for year in (2016, 2017):
-        artifact = task_artifacts[str(year)]
-        lines.append(
-            f"- {year}: `{artifact['path']}` ({artifact['rows']:,} rows, "
-            f"SHA-256 `{artifact['sha256']}`)"
-        )
-    lines.append("")
-    for year in (2016, 2017):
-        lines.extend([
-            f"## {year}",
-            "",
-            f"- Raw train/validation person rows: {stats[year]['raw_person_rows']:,}",
-            f"- Eligible person rows: {stats[year]['eligible_person_rows']:,}",
-            f"- Positive rate (safe partitions only): {stats[year]['positive_rate']:.6f}",
-            f"- Unique households in safe raw rows: {stats[year]['households']:,}",
-            f"- Eligible persons by split: {json.dumps(stats[year]['eligible_by_split'], sort_keys=True)}",
-            f"- Household-size quantiles: {json.dumps(stats[year]['household_size_quantiles'], sort_keys=True)}",
-            f"- Feature missingness: {json.dumps(stats[year]['feature_missingness'], sort_keys=True)}",
-            f"- Feature cardinality: {json.dumps(stats[year]['feature_cardinality'], sort_keys=True)}",
-            f"- Target missingness: {stats[year]['target_missingness']:.6f}",
-            "",
-        ])
-    for code in ("occ_codes", "pobp_codes"):
-        left = set(stats[2016][code])
-        right = set(stats[2017][code])
-        lines.extend([
-            f"## {code.upper()} code-set comparison (train/validation only)",
-            "",
-            f"- 2016 unique codes: {len(left)}",
-            f"- 2017 unique codes: {len(right)}",
-            f"- 2016 only: {json.dumps(sorted(left - right))}",
-            f"- 2017 only: {json.dumps(sorted(right - left))}",
-            "",
-        ])
-    lines.extend([
-        "## Execution boundaries",
-        "",
-        "- Household split assignment precedes task filtering.",
-        "- No model training, prediction generation, or metrics on discovery/confirmation.",
-        "- No inflation adjustment; primary target is nominal PINCP > 50000.",
-        "- Validate Newcombe score-interval coverage by simulation as specified in the roadmap.",
-        "- McNemar's person-level independence assumption remains an explicit limitation; do not silently substitute another confirmation test.",
-    ])
     definition_text = (OUT / "folktables_definition.txt").read_text(encoding="utf-8")
-    lines.extend([
-        "## Exact installed Folktables task definition",
-        "",
-        "```text",
-        definition_text.rstrip(),
-        "```",
-        "",
-    ])
-    (OUT / "01_data_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    report = build_report(
+        offline=offline,
+        provenance=provenance,
+        task_artifacts=task_artifacts,
+        stats=stats,
+        run_timestamp=run_timestamp,
+        source_revision=source_revision,
+        python_version=python_version,
+        versions=versions,
+        definition_text=definition_text,
+    )
+    (OUT / "01_data_report.md").write_text(report, encoding="utf-8")
     print("M0.1 complete; manifest rows:", len(manifest), "SHA-256:", digest)
     return 0
 

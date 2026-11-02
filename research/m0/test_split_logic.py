@@ -35,6 +35,8 @@ from prepare_m0 import (  # noqa: E402
     FEATURES,
     PUMS_CSV_NAME,
     SALT,
+    _portable_provenance,
+    _weighted_mean,
     assign_household_splits,
     assert_no_household_leakage,
     describe_safe_partition,
@@ -68,6 +70,35 @@ def write_zip(source_csv: Path, zip_path: Path, member_name: str | None = None) 
     with zipfile.ZipFile(zip_path, "w") as archive:
         archive.write(source_csv, arcname=member_name or source_csv.name)
     return zip_path
+
+
+class TestReportHelpers(unittest.TestCase):
+    def test_weighted_mean_uses_person_weights(self):
+        self.assertAlmostEqual(_weighted_mean([0, 1], [1, 3]), 0.75)
+
+    def test_weighted_mean_excludes_missing_pairs(self):
+        self.assertAlmostEqual(_weighted_mean([1, None, 0], [1, 100, 3]), 0.25)
+
+    def test_weighted_mean_rejects_invalid_weights(self):
+        with self.assertRaises(ValueError):
+            _weighted_mean([0, 1], [1, -1])
+        with self.assertRaises(ValueError):
+            _weighted_mean([0, 1], [1])
+
+    def test_weighted_mean_returns_nan_for_zero_total_weight(self):
+        self.assertTrue(pd.isna(_weighted_mean([0, 1], [0, 0])))
+
+    def test_public_provenance_removes_operator_paths(self):
+        record = {
+            "mode": "local_file",
+            "source_path": "/Users/private/Desktop/2017/csv_pca.zip",
+            "staged_csv": "/Users/private/repo/research/m0/data/2017/1-Year/psam_p06.csv",
+        }
+        portable = _portable_provenance(record, 2017)
+        self.assertEqual(portable["source_path"], "operator-supplied/2017/csv_pca.zip")
+        self.assertEqual(portable["staged_csv"], "data/2017/1-Year/psam_p06.csv")
+        self.assertNotIn("/Users/", portable["source_path"])
+        self.assertTrue(record["source_path"].startswith("/Users/"), "input record must remain usable")
 
 
 class TestHashContract(unittest.TestCase):
@@ -168,6 +199,12 @@ class TestM01Firewall(unittest.TestCase):
         self.assertTrue(set(task_frame["SERIALNO"].astype(str)).issubset(allowed))
         self.assertTrue(set(task_frame["split"]).issubset({"train", "validation"}))
         self.assertEqual(stats["eligible_person_rows"], len(task_frame))
+        self.assertEqual(stats["positive_rate_unweighted"], 0.5)
+        self.assertEqual(stats["positive_rate_pwgtp_weighted"], 0.5)
+        self.assertEqual(
+            stats["eligible_rate_unweighted"],
+            len(task_frame) / stats["raw_person_rows"],
+        )
         self.assertEqual(
             set(["SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "split", *FEATURES, "target"]),
             set(task_frame.columns),
