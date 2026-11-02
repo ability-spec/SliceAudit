@@ -18,11 +18,11 @@ The intended workflow separates slice discovery from independent confirmation, a
 
 ## Project status
 
-<small>Research prototype — M0/M0.1 only. No model comparison results are claimed.</small>
+<small>Research prototype — M0.1 data audit complete. No model comparison results are claimed.</small>
 
-The current work establishes a data and split audit for the ACSIncome task using California ACS PUMS 2016 and 2017 records. The real data download and Parquet export have **not** been completed: no executed environment has had both a supported interpreter and Census access. See [`research/m0/01_data_report.md`](research/m0/01_data_report.md) and the dated execution history in [`research/m0/ENV.md`](research/m0/ENV.md).
+The M0.1 data and split audit completed on 2026-11-01 using operator-supplied California ACS PUMS 2016 and 2017 archives in fully offline mode. The safe ACSIncome artifacts contain 190,187 eligible train/validation people for 2016 and 116,092 for 2017. Source and artifact SHA-256 values are recorded, but the local archives were not verified against upstream Census checksums. See [`research/m0/01_data_report.md`](research/m0/01_data_report.md) for findings and limitations, and [`research/m0/ENV.md`](research/m0/ENV.md) for the dated execution history.
 
-No model has been trained, no discovery or confirmation metrics have been calculated, and no ManimGX video has been rendered. The animation fixture is synthetic and labelled accordingly.
+No model has been trained, no discovery or confirmation metrics have been calculated, and no ManimGX video has been rendered. The animation fixture is synthetic and labelled accordingly. M0.1 validates data preparation only; it does not yet validate SliceAudit's hidden-regression detection method.
 
 ## Design principles
 
@@ -42,7 +42,7 @@ research/m0/
   prepare_m0.py           Household split, safe-partition audit, Parquet manifest, report
                           (Census download by default, --raw-dir for a fully offline run)
   test_split_logic.py     Determinism, household isolation, held-out filter guard, offline staging, ENV history
-  01_data_report.md       Honest record of what has and has not run
+  01_data_report.md       Audit findings, checks, provenance, and limitations
   ENV.md                  Dated execution history plus the generated runtime block
 
 docs/

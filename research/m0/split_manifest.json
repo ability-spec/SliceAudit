@@ -2,22 +2,28 @@
   "salt": "sliceaudit-acsincome-ca-2016-2017-v1",
   "assignment": "SHA256(salt + SERIALNO) mod 10000",
   "unit": "household",
+  "run": {
+    "timestamp_utc": "2026-11-01T17:05:50+00:00",
+    "source_revision": "418617a46dbe9925431791241e6044a7479e5197",
+    "python": "3.13.18",
+    "command": "uv run python research/m0/prepare_m0.py --raw-dir <PUMS_ROOT>"
+  },
   "raw_data_acquisition": "local_files",
   "raw_source": {
     "2016": {
       "mode": "local_file",
-      "source_path": "/Users/qobiljonerkinjonov/Desktop/SliceAudit/2016/csv_pca.zip",
+      "source_path": "operator-supplied/2016/csv_pca.zip",
       "source_sha256": "a434bf9316f174d896766488cd5fd4ae7356a9512258321110b62110c6ded818",
       "source_bytes": 75148888,
-      "staged_csv": "/Users/qobiljonerkinjonov/Desktop/SliceAudit-repo/research/m0/data/2016/1-Year/ss16pca.csv",
+      "staged_csv": "data/2016/1-Year/ss16pca.csv",
       "staged_csv_sha256": "9d8b7eb28baa74a88537d3f429b0a361cc36e8c60f67c25d52cac1fb0a7d5c1a"
     },
     "2017": {
       "mode": "local_file",
-      "source_path": "/Users/qobiljonerkinjonov/Desktop/SliceAudit/2017/csv_pca.zip",
+      "source_path": "operator-supplied/2017/csv_pca.zip",
       "source_sha256": "d28c43dabd5fdc0abcba3d0941101bf6eceda4a84c1bdd269982adb8b89d6617",
       "source_bytes": 74948023,
-      "staged_csv": "/Users/qobiljonerkinjonov/Desktop/SliceAudit-repo/research/m0/data/2017/1-Year/psam_p06.csv",
+      "staged_csv": "data/2017/1-Year/psam_p06.csv",
       "staged_csv_sha256": "40673d247f4d3730d5a75c48957a9911b54ebbd61ab5ba7b8ae415d401cf1c2e"
     }
   },
@@ -96,5 +102,13 @@
     }
   },
   "splits_parquet_sha256": "62f5cd7e2512fa10857faee44dcf30c7ef328bb681f1bc0eb8f08a079bf506c2",
-  "heldout_task_rows_inspected": false
+  "heldout_task_rows_inspected": false,
+  "audit_checks": {
+    "household_cross_split_count": 0,
+    "california_only_raw_rows": true,
+    "target_rule_verified_on_safe_rows": true,
+    "heldout_task_rows_inspected": false,
+    "row_order_invariance": "unit_tested",
+    "upstream_checksum_verified": false
+  }
 }
