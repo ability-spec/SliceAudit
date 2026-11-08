@@ -44,7 +44,8 @@ SALT = "sliceaudit-acsincome-ca-2016-2017-v1"
 FEATURES = ["AGEP", "COW", "SCHL", "MAR", "OCCP", "POBP", "RELP", "WKHP", "SEX", "RAC1P"]
 BUCKETS = {
     2017: [(0, 5000, "train"), (5000, 6000, "validation"), (6000, 8000, "discovery"), (8000, 10000, "confirmation")],
-    2016: [(0, 8500, "train"), (8500, 10000, "validation")],
+    # Revised preregistration: 50% train, 10% validation, 40% unused.
+    2016: [(0, 5000, "train"), (5000, 6000, "validation"), (6000, 10000, "unused")],
 }
 REQUIRED_RAW_FIELDS = {"SERIALNO", "SPORDER", "PWGTP", "ST", "ADJINC", "PINCP", *FEATURES}
 CALIFORNIA_ST_CODE = "06"
@@ -500,8 +501,13 @@ def build_report(
         f"| Eligible train people | {stats[2016]['eligible_by_split']['train']:,} | {stats[2017]['eligible_by_split']['train']:,} |",
         f"| Eligible validation people | {stats[2016]['eligible_by_split']['validation']:,} | {stats[2017]['eligible_by_split']['validation']:,} |",
         "",
-        "**Comparability warning:** 2016 train/validation covers all assigned households (85% + 15%), "
-        "whereas 2017 train/validation covers 60% (50% + 10%). These counts are not full-year totals. "
+        "**Comparability warning:** both years assign 50% of households to train and 10% to validation. "
+        "The 2017 design additionally reserves 20% for discovery and 20% for confirmation; the remaining "
+        "40% of 2016 households are unused. These are household assignment shares, not guaranteed person-level "
+        "shares. Household sizes and task-filter eligibility can produce different eligible person counts. "
+        "Before fitting S-A, deterministically downsample the larger training cohort by whole households to "
+        "match the smaller eligible person count as closely as possible; apply analogous matching to validation "
+        "when comparing thresholds, and record residual differences. These counts are not full-year totals. "
         "The positive-rate difference is descriptive only: it is not population-weighted unless explicitly "
         "labelled, and the nominal `PINCP > 50000` target is not constant-purchasing-power comparable "
         "across years. No US-population inference is made.",

@@ -38,8 +38,15 @@ split:
     discovery: 0.20
     confirmation: 0.20
   2016_household_bucket_shares:
-    train: 0.85
-    validation: 0.15
+    train: 0.50
+    validation: 0.10
+    unused: 0.40
+  sample_size_matching:
+    required_before_model_fit: true
+    method: deterministic_whole_household_downsample_of_larger_training_cohort
+    target: smaller_eligible_person_count_between_years
+    report_residual_person_count_difference: true
+    validation_matching: required_when_thresholds_are_compared
   leakage_checks:
     household_cross_split_count: 0
     permutation_invariant: true
@@ -57,6 +64,7 @@ models:
   S-A:
     v1: "HistGradientBoostingClassifier trained on 2016"
     v2: "Same HGB configuration trained on 2017"
+    training_size: "Match eligible person counts by deterministic whole-household subsampling before fit; record residual difference."
     threshold: "Select independently for each year on its own validation split by maximum accuracy; tie-break closest to 0.5."
   S-B:
     v1: "LogisticRegression trained on 2017"
@@ -100,8 +108,8 @@ statistics:
     ranking_statistic: "z_S = (C_S - B_S) / sqrt(D_S)"
   discovery:
     eligibility: "n_S >= n_floor and Delta_S < 0"
-    ranking: "ascending z_S"
-    max_selected_slices_per_scenario: 3
+    ranking: "most_negative_cluster_aware_statistic"
+    max_selected_slices_per_scenario: "TODO(owner; roadmap default 3 per scenario)"
     selection: "greedy; skip a candidate if Jaccard overlap > 0.5 with an already selected slice"
     selection_commit: selection.json
     confirmation_access_before_commit: forbidden
@@ -111,24 +119,33 @@ statistics:
       purpose: context_only_not_confirmatory
       rng_seed_and_ordering: "deterministic over sorted household IDs"
   confirmation:
-    primary_test: exact_one_sided_McNemar
-    p_value: "P(X >= B_S), X ~ Binomial(D_S, 0.5)"
+    primary_test_candidate: cluster_robust_Wald_t_on_person_weighted_paired_difference
     alternative: "Delta_S < 0"
+    cluster_id: SERIALNO
+    cluster_score: "U_g = sum of per-person paired correctness differences in slice S for household g"
+    estimator: "Delta_S = sum_g(U_g) / sum_g(n_g)"
+    variance_candidate: "G/(G-1) * sum_g[(U_g - Delta_S*n_g)^2] / [sum_g(n_g)]^2"
+    reference_distribution_candidate: "one-sided t with G-1 degrees of freedom"
+    mandatory_calibration: null_restricted_household_wild_cluster_bootstrap_t
+    bootstrap_replicates: 9999
+    bootstrap_weight_distribution: Rademacher
+    bootstrap_p_value: "one-sided lower tail with plus-one correction"
+    finite_sample_correction: "TODO(before_G0; specify exact studentization and null imposition)"
+    rng_seed_and_ordering: "TODO(before_G0; deterministic over sorted cluster IDs)"
+    minimum_clusters: "TODO(owner/reviewer; provisional guardrail 30, justify by simulation)"
+    person_level_exact_mcnemar: sensitivity_only_not_confirmatory
     multiplicity: Holm
-    family: "all selected confirmation tests across S-A and S-B; maximum six"
+    family: "all selected confirmation tests across S-A and S-B; maximum six under current k"
     alpha_base: 0.05
     alpha_attempt: "0.05 / attempt_index"
-    cluster_dependence_limitation: "Person-level McNemar assumes independent discordant pairs; household clustering is documented as a limitation in the roadmap."
   confidence_intervals:
-    paired_difference: "Newcombe score interval, 95%"
-    simultaneous: "Bonferroni level 1 - alpha_attempt/m"
-    delta_not_slice_and_contrast: "household cluster bootstrap, descriptive only"
-    newcombe_coverage_validation_required: true
-    fallback_if_coverage_fails: "household cluster bootstrap with explicit limitation"
+    primary: household_cluster_bootstrap
+    target: person_weighted_paired_accuracy_difference
+    coverage_simulation_required: true
   retraining_noise:
     K: 199
     p_churn: "(1 + count(Delta_S(v1->v1_k) <= Delta_S(v1->v2))) / (K + 1)"
-    S-A: "inferential comparison with v1 retraining procedure; Holm across confirmed slices"
+    S-A: "secondary/sensitivity comparison to v1 retraining-procedure variability; calibrate before inferential use"
     S-B: descriptive_stability_only
     N-0: calibration_negative_control
     K_rule: "Choose K so 1/(K+1) < alpha_attempt/m_churn; K=199 under roadmap assumptions."
@@ -143,6 +160,7 @@ owner_todos:
   model_input_features: "TODO(owner)"
   constant_dollar_sensitivity: "TODO(owner): decide whether to preregister ADJINC-based sensitivity and single reference year"
   fixed_common_threshold_sensitivity: "TODO(owner)"
+  cluster_test_calibration: "TODO(owner/reviewer): approve wild-cluster bootstrap specification and simulation acceptance criteria before G0"
 
 m0_1:
   train_models: false

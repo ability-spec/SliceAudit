@@ -1,5 +1,7 @@
 # M0.1 data report
 
+> **Historical run under the superseded 2016 split allocation.** This report records the 2026-11-01 execution, which assigned 2016 households 85% to train and 15% to validation. The revised preregistration now requires 50% train, 10% validation, and 40% unused. Preserve these results for provenance, but do not use the existing 2016 split manifest or task artifacts for M0.2. Re-run M0.1 with the revised allocation before fitting models.
+
 > **Status: M0.1 completed; model validation has not started.** Train/validation summaries only. Discovery and confirmation task rows were not filtered or summarized.
 
 ## Executive summary
