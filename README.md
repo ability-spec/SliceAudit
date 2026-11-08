@@ -18,7 +18,9 @@ The intended workflow separates slice discovery from independent confirmation, a
 
 ## Project status
 
-<small>Research prototype — M0.1 data audit complete. No model comparison results are claimed.</small>
+<small>Research prototype — M0.1 data audit completed under the original split allocation. No model comparison results are claimed.</small>
+
+**Protocol update (2026-11-07):** the current draft changes 2016 household allocation to 50% train / 10% validation / 40% unused and proposes cluster-aware confirmation. The committed 2026-11-01 report, split manifest, and task artifacts preserve the earlier 85% / 15% allocation. They are historical provenance only and must not be used for M0.2. Re-run M0.1 from the operator-supplied PUMS archives under the revised preregistration before fitting models.
 
 The M0.1 data and split audit completed on 2026-11-01 using operator-supplied California ACS PUMS 2016 and 2017 archives in fully offline mode. The safe ACSIncome artifacts contain 190,187 eligible train/validation people for 2016 and 116,092 for 2017. Source and artifact SHA-256 values are recorded, but the local archives were not verified against upstream Census checksums. See [`research/m0/01_data_report.md`](research/m0/01_data_report.md) for findings and limitations, and [`research/m0/ENV.md`](research/m0/ENV.md) for the dated execution history.
 

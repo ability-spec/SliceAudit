@@ -145,13 +145,14 @@ class TestHouseholdSplit(unittest.TestCase):
         self.assertAlmostEqual(shares["discovery"], 0.20, delta=0.015)
         self.assertAlmostEqual(shares["confirmation"], 0.20, delta=0.015)
 
-    def test_2016_bucket_shares_match_roadmap(self):
+    def test_2016_bucket_shares_match_revised_preregistration(self):
         raw = pd.DataFrame({"SERIALNO": [f"HH{i:06d}" for i in range(20000)]})
         manifest = assign_household_splits(raw, 2016)
         shares = manifest["split"].value_counts(normalize=True)
-        self.assertAlmostEqual(shares["train"], 0.85, delta=0.015)
-        self.assertAlmostEqual(shares["validation"], 0.15, delta=0.015)
-        self.assertEqual(set(manifest["split"]), {"train", "validation"})
+        self.assertAlmostEqual(shares["train"], 0.50, delta=0.015)
+        self.assertAlmostEqual(shares["validation"], 0.10, delta=0.010)
+        self.assertAlmostEqual(shares["unused"], 0.40, delta=0.015)
+        self.assertEqual(set(manifest["split"]), {"train", "validation", "unused"})
 
     def test_leakage_guard_rejects_household_in_two_splits(self):
         manifest = assign_household_splits(pd.DataFrame({"SERIALNO": ["A", "B", "C"]}), 2017)
