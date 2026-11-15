@@ -1,43 +1,37 @@
-# Overlapping-slice family calibration status
+# Overlapping-slice complete-null calibration
 
-**Date:** 2026-11-14  
-**Status:** preliminary calibration only; the overall simulation gate is NOT PASSED.
+**Status: expanded screening completed; overall simulation gate remains NOT PASSED. Synthetic only.**
 
-## Completed synthetic calibration cell
+## Fixed-family screening grid
 
-A data-level complete-null simulation was run with six correlated slice-membership masks and household-clustered paired correctness differences.
+Eleven 500-repetition cells were run with 300 households, six correlated candidate slices, CR2/Satterthwaite tests, and Holm adjustment. Eight cells vary ICC (0.05, 0.15, 0.30) and latent overlap (0.1, 0.5, 0.9); two additional cells vary household-size profile at ICC 0.15 / overlap 0.5. Candidate slices below n_floor=200 or with fewer than 10 household clusters are treated as ineligible and assigned p=1. The technical 10-cluster guard is not an approved production floor.
 
-| Setting | Value |
-|---|---:|
-| Replications | 2,000 |
-| Households | 300 |
-| Household ICC | 0.15 |
-| Latent overlap correlation | 0.50 |
-| Tests in family | 6 |
-| Mean realized pairwise Jaccard | 0.49916 |
-| Holm family-wise error rate | 0.0365 |
-| Exact binomial Monte Carlo 95% interval | 0.028717–0.045677 |
+| ICC | Latent overlap | Size profile | Realized Jaccard | FWER | 95% Monte Carlo interval | First-slice eligibility |
+|---:|---:|---|---:|---:|---:|---:|
+| 0.05 | 0.1 | moderate | 0.381 | 0.048 | [0.031, 0.071] | 99.4% |
+| 0.05 | 0.5 | moderate | 0.500 | 0.042 | [0.026, 0.063] | 99.4% |
+| 0.05 | 0.9 | moderate | 0.682 | 0.030 | [0.017, 0.049] | 99.2% |
+| 0.15 | 0.1 | moderate | 0.381 | 0.042 | [0.026, 0.063] | 99.4% |
+| 0.15 | 0.5 | balanced_2 | 0.498 | 0.034 | [0.020, 0.054] | 87.6% |
+| 0.15 | 0.5 | moderate | 0.500 | 0.038 | [0.023, 0.059] | 99.4% |
+| 0.15 | 0.5 | right_skewed | 0.503 | 0.024 | [0.012, 0.042] | 84.4% |
+| 0.15 | 0.9 | moderate | 0.682 | 0.022 | [0.011, 0.039] | 99.2% |
+| 0.30 | 0.1 | moderate | 0.381 | 0.052 | [0.034, 0.075] | 99.4% |
+| 0.30 | 0.5 | moderate | 0.500 | 0.032 | [0.018, 0.051] | 99.4% |
+| 0.30 | 0.9 | moderate | 0.683 | 0.022 | [0.011, 0.039] | 99.2% |
 
-This single calibration cell is compatible with a 0.05 FWER target under the current Monte Carlo interval. It does not establish calibration across the design space.
+All cells are screening-level only (500 repetitions each). Their Monte Carlo intervals are too wide for a final acceptance decision. In particular, the ICC 0.30 / overlap 0.10 cell has an upper bound of 7.53%, and the ICC 0.05 / overlap 0.10 and ICC 0.15 / overlap 0.10 or 0.50 cells also have upper bounds above the proposed 5.5% simulation threshold.
 
-## Important limitations
+## Higher-repetition fixed-family baseline
 
-- The simulation uses synthetic Gaussian-copula slice membership, not the empirical ACS feature prevalence and dependence structure.
-- It is a complete-null cell only. Partial-null strong-FWER behavior has not been established.
-- It does not yet replay the registered discovery procedure, greedy Jaccard-overlap filtering, or the discovery-to-independent-confirmation firewall.
-- The current result does not validate the whole family-wise procedure or authorize opening confirmation data.
-- The synthetic generator's PWGTP-like values are not Census replicate weights and cannot support ACS design-based inference.
-- CR2/Satterthwaite algebra has unit tests, but an independent package-level CR2 implementation cross-check remains outstanding.
+The ICC 0.15 / latent overlap 0.50 / moderate-size baseline was run in five non-overlapping 1,000-repetition batches (5,000 total), applying the n_floor=200 eligibility rule. Result: **165 / 5,000 family rejections, FWER 3.30%, exact binomial 95% interval 2.82%–3.83%**. Mean realized pairwise Jaccard was approximately 0.500. This is stronger evidence for this one fixed-family synthetic cell, but it still does not replay discovery selection.
 
-## Next calibration work
+## Limits and decision
 
-1. Add partial-null data-level scenarios with a clearly specified common paired-outcome construction.
-2. Replay the exact discovery selection rule, including the Jaccard > 0.5 exclusion rule, then test on independent confirmation data.
-3. Expand complete-null calibration across ICC values 0.05, 0.15, and 0.30, household-size profiles, and overlap levels.
-4. Run at least 20,000 repetitions for final calibration cells and report Monte Carlo uncertainty.
-5. Cross-check the CR2/Satterthwaite implementation independently.
-6. Keep M0.2 blocked until the simulation gate and protocol freeze are complete.
+1. All grid cells use synthetic Gaussian-copula membership, not the empirical ACS feature prevalence/dependence structure.
+2. The fixed-family grid does not execute the greedy discovery selection process. A separate independent-selection replay was run; its preliminary results are documented in SELECTION_REPLAY_STATUS.md in the local simulation package.
+3. The 10-household technical guard is a simulation safeguard only. The operational minimum-cluster rule remains unresolved.
+4. This work does not use ACS replicate weights, actual PUMS discovery/confirmation rows, trained models, or prediction outputs.
+5. The earlier 2,000-repetition pilot result (3.65%, interval 2.87%–4.57%) predates enforcement of n_floor=200 and must be treated as a legacy pilot, not pooled with the new grid.
 
-## Reproducibility
-
-The companion local artifact package `SliceAudit_M0_Simulation_v0.1` contains the synthetic DGP, inference implementation, multiplicity helpers, tests, run configuration, and machine-readable results. Its unit suite passed **28/28 tests** in the local environment. No actual PUMS data, trained models, discovery slices, or confirmation outcomes were accessed in this calibration work.
+**Overall Simulation Gate: NOT PASSED.** The baseline fixed-family cell looks conservative, but the wider grid is screening-only and the full design/strong-FWER evidence remains incomplete.
