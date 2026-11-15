@@ -2,33 +2,35 @@
 
 **Status: preliminary synthetic replay completed; overall simulation gate remains NOT PASSED.**
 
-## Design
+### Design
 
-- Two model-comparison scenarios, S-A and S-B. Each has six candidate slices.
-- Discovery and confirmation are generated from independent household samples.
-- Discovery ranks eligible candidates by the most negative CR2/Satterthwaite t statistic.
-- Greedy selection skips a candidate when its person-level Jaccard overlap with any already selected slice is greater than 0.5; up to three are selected per scenario.
-- Holm is applied once across the selected confirmation family, which can contain up to six tests.
-- Candidate eligibility requires at least 200 people and at least 10 households in this simulation runner. The 10-household threshold is only a technical simulation guard, not an approved protocol decision.
+- Two model-comparison scenarios, S-A and S-B, each with six candidate slices.
+- Independent discovery and confirmation household samples.
+- Discovery ranks eligible candidates by the most-negative CR2/Satterthwaite statistic.
+- Greedy Jaccard selection skips a candidate when overlap with any selected slice exceeds 0.5; up to three slices are selected per scenario.
+- Holm is applied across the selected confirmation family, maximum six.
+- Eligibility: at least 200 people and a technical minimum of 10 households. The 10-household floor is not an approved production rule.
 
-## Complete-null replay
+### Complete-null replay
 
-At 300 households, ICC 0.15, latent overlap 0.5, and the moderate size profile, 500 repetitions produced **15 family rejections / 500 (3.0%)**, with exact binomial 95% interval **1.69%–4.90%**. The mean selected family size was 5.352. This is a preliminary complete-null selection replay, not a 20,000-repetition calibration. See selection_replay_complete_null_g300_500_v2.json.
+At 300 households, ICC 0.15, latent overlap 0.5, and moderate household sizes, 500 repetitions produced **15 family rejections / 500 (3.0%)**, exact binomial 95% interval **1.69%–4.90%**. Mean selected family size was 5.352.
 
-## Partial-null strong-FWER replay
+### Partial-null strong-FWER and power replay
 
-The partial-null DGP sets three candidate slice means per scenario to -2 percentage points and the other three to exactly zero, while using one common paired outcome per person across all six overlapping slices. The conditional mean surface is solved so the overall expected paired difference is zero and all six marginal slice means match their targets. The household-level Dirichlet concentration is algebraically calibrated to the requested **unconditional scalar paired-difference ICC** under the heterogeneous mean surface; unit tests verify the concentration equation and exact marginal slice-mean constraints. Discovery and confirmation use independent household samples.
+The partial-null DGP sets three candidate slice means per scenario to -2 percentage points and the other three to exactly zero. It uses one shared paired outcome per person. The conditional mean surface is solved to match all six marginal slice means while keeping the overall mean zero. The household Dirichlet concentration is algebraically calibrated to the requested unconditional scalar paired-difference ICC under heterogeneous household means; unit tests cover the equation and marginal constraints.
 
-Across four non-overlapping 100-repetition seed blocks (**400 total**), there were **7 replications with at least one false rejection among true-null selected tests**, giving partial-null strong FWER **1.75%**, exact binomial 95% interval **0.71%–3.57%**. The mean selected family size was 5.38. This is preliminary because only one partial-null pattern, one alternative effect size, and one parameter cell were run. See selection_replay_partial_null_400_pooled.json and the four component JSON files.
+Across six non-overlapping seed blocks (**800 total repetitions**), there were **19 replications with at least one false rejection among true-null selected tests**, giving partial-null strong FWER **2.375%**, exact binomial 95% interval **1.44%–3.68%**. Mean selected family size was 5.398.
 
-A pre-correction partial-null pilot was discarded after review found that its household Dirichlet concentration formula did not preserve the requested unconditional ICC in the presence of heterogeneous household means. Those superseded numbers must not be used.
+A power substudy on the latest two 200-repetition batches (**400 repetitions**) found a **16.5%** probability of rejecting at least one selected true alternative. Mean selected alternative tests was 3.555 per repetition; the per-selected-alternative rejection rate was **6.47%**. This is far below the proposed 80% power target for a -2 pp effect in this 300-household design. These are preliminary screen estimates, not final power curves.
 
-## Limitations
+A finite-sample ICC diagnostic using 5,000 synthetic households observed a within-household paired-difference ICC of 0.137 for a 0.15 target. This is consistent with the target within Monte Carlo variation; see the local companion package's partial_null_icc_diagnostic.json.
 
-1. Candidate-slice membership is synthetic and does not reproduce the real ACS AGEP/WKHP/SCHL/COW/OCCP/RELP dependence structure.
-2. Only one partial-null pattern and one effect size (-2 pp) were run. More patterns, effect sizes, ICCs, overlap levels, and size profiles are required.
-3. The selection replay models two independent scenario panels. Dependence between S-A and S-B model-comparison outcomes may differ in the real paired-prediction setting.
-4. This is not an independent package-level verification of CR2, nor does it validate the exact wild-cluster bootstrap.
-5. It does not access actual discovery/confirmation PUMS records and does not authorize M0.2.
+### Limitations
 
-**Decision: useful preliminary evidence, not a gate pass.** Expand the partial-null grid and calibrate the production candidate procedure with at least 20,000 repetitions in final cells before opening held-out data.
+1. Slice membership does not reproduce ACS AGEP/WKHP/SCHL/COW/OCCP/RELP dependence.
+2. Only one partial-null pattern, -2 pp effect, ICC, overlap, and household-size profile were run.
+3. S-A and S-B are simulated as independent scenario panels; dependence in a real shared-prediction setting may differ.
+4. Independent software/package verification of CR2 and final wild-cluster-bootstrap calibration remain outstanding.
+5. No actual discovery/confirmation PUMS records or trained model predictions were accessed.
+
+**Decision: preliminary evidence only, not a gate pass.** Expand the partial-null, power, and coverage grid across household counts, ICC, overlap, and size profiles; complete final 20,000-repetition critical cells before opening held-out data or starting M0.2.
