@@ -9,16 +9,18 @@ All work below is synthetic-only. No ACS PUMS, Folktables, discovery/confirmatio
 - Paired-outcome DGP with household clustering and variable household-size profiles.
 - IID diagnostic, CR1, CR2/Satterthwaite, null-restricted wild-cluster-bootstrap-t candidate, whole-household bootstrap intervals, weighted secondary point estimate, and Holm adjustment.
 - Fixed-family overlapping-slice complete-null runner and independent discovery-selection/confirmation replay.
-- 37 unit tests pass locally, including randomized CR2 matrix-reference checks and partial-null mean/ICC calibration tests.
+- Prespecified true-null p-value diagnostic to separate test calibration from selection effects.
+- 38 unit tests pass locally, including randomized CR2 matrix-reference checks, overlap-runner tests, and partial-null mean/ICC calibration tests.
 
 ## Main screening results
 
-- Fixed-family overlapping-slice baseline (G=300, ICC 0.15, overlap 0.5, moderate size): **5,000 repetitions**, FWER **3.30%**, exact 95% interval **2.82%–3.83%**. The wider 11-cell fixed-family grid has 500 repetitions per cell; several upper Monte Carlo bounds exceed 5.5%.
-- Independent-selection complete-null replay (G=300): **500 repetitions**, FWER **3.0%**, exact 95% interval **1.69%–4.90%**.
-- Independent-selection partial-null replay (G=300; three null and three -2 pp alternative slice means per scenario): **800 repetitions**, strong FWER **2.375%**, exact 95% interval **1.44%–3.68%**.
-- Power after selection and Holm: at G=300, **16.5%** chance of at least one selected alternative rejection (400-repetition substudy; interval 13.0%–20.5%); at G=500, **27%** (100 reps; 18.6%–36.8%); at G=1,000, **35%** (100 reps; 25.7%–45.2%). At G=100, n_floor=200 excluded all candidates, so no family-level power was estimable. These points are exploratory, not a power curve; per-selected-alternative rejection rates were 6.47%, 11.35%, and 14.10% for G=300/500/1,000 respectively.
+- Fixed-family overlapping-slice baseline (G=300, ICC 0.15, overlap 0.5, moderate size): 5,000 repetitions, FWER 3.30%, exact 95% interval 2.82%–3.83%. The wider 11-cell fixed-family grid has 500 repetitions per cell; several upper Monte Carlo bounds exceed 5.5%.
+- Independent-selection complete-null replay (G=300): 500 repetitions, FWER 3.0%, exact 95% interval 1.69%–4.90%.
+- Independent-selection partial-null replay (G=300; three null and three -2 pp alternative slice means per scenario): 800 repetitions, strong FWER 2.375%, exact 95% interval 1.44%–3.68%.
+- Power after selection and Holm: 16.5% at G=300 (400 reps; interval 13.0%–20.5%); 27% at G=500 (100 reps; 18.6%–36.8%); 35% at G=1,000 (100 reps; 25.7%–45.2%); 64% at G=2,000 (50 reps; 49.2%–77.1%); 100% at G=5,000 (100 reps; 96.4%–100%). G=100 formed no eligible family under n_floor=200.
+- Crucially, G=5,000 selected-family partial-null FWER was 7.0% (100 reps; interval 2.86%–13.89%); G=2,000 FWER was 4.0% (50 reps; interval 0.49%–13.71%). Neither higher-G cell passes the FWER bound. A separate G=5,000 prespecified-null diagnostic produced 5.33% raw pointwise rejection across 300 tests and mean p-value 0.511, but Holm FWER was 6.0% (50 reps; interval 1.25%–16.55%).
 
-The partial-null generator uses one common paired outcome per person and solves a household-mean surface for exact marginal slice targets. The household Dirichlet concentration is calibrated to the requested unconditional scalar paired-difference ICC. A 5,000-household diagnostic observed within-household ICC 0.137 for a 0.15 target; finite-sample variation remains.
+The partial-null generator uses one common paired outcome per person and solves a household-mean surface for exact marginal slice targets. Household Dirichlet concentration is calibrated to the requested unconditional scalar paired-difference ICC. A 5,000-household diagnostic observed within-household ICC 0.137 for a 0.15 target; finite-sample variation remains.
 
 ## Remaining gates
 
