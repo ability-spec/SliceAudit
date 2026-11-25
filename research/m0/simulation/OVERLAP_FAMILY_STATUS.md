@@ -1,11 +1,11 @@
-# Overlapping-slice family calibration status
+# Overlapping-slice and selection-replay calibration status
 
-**Date:** 2026-11-14  
-**Status:** preliminary calibration only; the overall simulation gate is NOT PASSED.
+**Updated:** 2026-11-25  
+**Overall Simulation Gate:** **NOT PASSED**. The new results below are synthetic screening, not final calibration.
 
-## Completed synthetic calibration cell
+## Earlier complete-null pilot (2026-11-14)
 
-A data-level complete-null simulation was run with six correlated slice-membership masks and household-clustered paired correctness differences.
+A data-level complete-null simulation used six correlated slice-membership masks and household-clustered paired correctness differences.
 
 | Setting | Value |
 |---|---:|
@@ -18,26 +18,65 @@ A data-level complete-null simulation was run with six correlated slice-membersh
 | Holm family-wise error rate | 0.0365 |
 | Exact binomial Monte Carlo 95% interval | 0.028717–0.045677 |
 
-This single calibration cell is compatible with a 0.05 FWER target under the current Monte Carlo interval. It does not establish calibration across the design space.
+This is one complete-null cell only; it does not establish calibration across the design space.
 
-## Important limitations
+## New partial-null end-to-end selection replay (2026-11-25)
 
-- The simulation uses synthetic Gaussian-copula slice membership, not the empirical ACS feature prevalence and dependence structure.
-- It is a complete-null cell only. Partial-null strong-FWER behavior has not been established.
-- It does not yet replay the registered discovery procedure, greedy Jaccard-overlap filtering, or the discovery-to-independent-confirmation firewall.
-- The current result does not validate the whole family-wise procedure or authorize opening confirmation data.
-- The synthetic generator's PWGTP-like values are not Census replicate weights and cannot support ACS design-based inference.
-- CR2/Satterthwaite algebra has unit tests, but an independent package-level CR2 implementation cross-check remains outstanding.
+The synthetic discovery-selection-confirmation replay was extended to 4,000 independent repetitions at the previously high-power operating point.
 
-## Next calibration work
+| Setting | Value |
+|---|---:|
+| Replications | 4,000 |
+| Households per split | 5,000 |
+| Paired-difference household ICC | 0.15 |
+| Latent slice-overlap correlation | 0.50 |
+| Household-size profile | moderate |
+| Candidate slices | 6 per scenario, 2 scenarios |
+| Slices selected | up to 3 per scenario |
+| Minimum people per candidate | 200 |
+| Alternative slice effect | -2 percentage points |
+| Confirmation family | Holm, up to 6 tests |
 
-1. Add partial-null data-level scenarios with a clearly specified common paired-outcome construction.
-2. Replay the exact discovery selection rule, including the Jaccard > 0.5 exclusion rule, then test on independent confirmation data.
-3. Expand complete-null calibration across ICC values 0.05, 0.15, and 0.30, household-size profiles, and overlap levels.
-4. Run at least 20,000 repetitions for final calibration cells and report Monte Carlo uncertainty.
-5. Cross-check the CR2/Satterthwaite implementation independently.
-6. Keep M0.2 blocked until the simulation gate and protocol freeze are complete.
+Three of six slice hypotheses per scenario are true nulls; the other three have a -2 pp effect. Discovery and confirmation use independently generated household samples. The same paired correctness outcome is shared across overlapping slices.
 
-## Reproducibility
+| Result | Estimate |
+|---|---:|
+| Partial-null strong FWER | **4.65%** (186 / 4,000) |
+| Exact binomial Monte Carlo 95% interval | **4.02%–5.35%** |
+| Probability of at least one selected alternative rejection | **98.50%** |
+| Rejection rate among selected alternative tests | **79.19%** |
+| Mean selected family size | 5.648 |
 
-The companion local artifact package `SliceAudit_M0_Simulation_v0.1` contains the synthetic DGP, inference implementation, multiplicity helpers, tests, run configuration, and machine-readable results. Its unit suite passed **28/28 tests** in the local environment. No actual PUMS data, trained models, discovery slices, or confirmation outcomes were accessed in this calibration work.
+The FWER interval is below the currently proposed 5.5% upper-bound for this particular cell. This is encouraging screening evidence, not a Simulation Gate pass: it is one synthetic operating point, and the preregistered final plan requires at least 20,000 repetitions in critical cells, wider ICC/overlap/cluster-size coverage, and a validated inference implementation.
+
+## Prespecified true-null diagnostic without discovery selection
+
+A separate diagnostic isolates the marginal CR2/Satterthwaite p-value layer from the selection process. All six prespecified true-null slices were tested in each repetition.
+
+| Result | Estimate |
+|---|---:|
+| Repetitions | 2,000 |
+| Raw tests | 12,000 |
+| Raw pointwise rejection | 4.842% |
+| Exact binomial Monte Carlo 95% interval | 4.464%–5.241% |
+| Mean null p-value | 0.5008 |
+| Holm FWER | **4.05%** |
+| Exact binomial Monte Carlo 95% interval | **3.23%–5.01%** |
+
+This supports the marginal p-value layer under this one synthetic partial-null design. It does not validate discovery selection, other operating points, or the exact wild-cluster bootstrap.
+
+## Implementation and tests
+
+The local simulation package's selection replay now generates household-level Dirichlet probabilities and person outcomes with vectorized NumPy operations instead of a Python RNG loop per household. This made larger-G screening runs practical while retaining household-constant slice membership and independent discovery/confirmation panels.
+
+**Unit suite: 40/40 passed** after the change, including new determinism, household-alignment, and partial-null target-mean tests.
+
+## Remaining gates
+
+1. Run at least 20,000 repetitions in each critical final null and interval-coverage cell, with Monte Carlo intervals reported.
+2. Extend data-level partial-null selection replay across ICC, overlap, household-size profiles, and sample sizes.
+3. Complete an independent software/package cross-check of CR2/Satterthwaite.
+4. Validate the wild-cluster-bootstrap finite-sample contract with at least 9,999 draws per test in final calibration.
+5. Re-run M0.1 with the revised household split allocation before M0.2. The committed 2026-11-01 2016 artifacts use the superseded 85%/15% allocation and must not be used for model fitting.
+
+The simulations use synthetic data only. No ACS PUMS discovery/confirmation records or fitted model predictions were read. **M0.2 remains blocked.**
