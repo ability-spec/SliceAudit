@@ -16,6 +16,20 @@ The intended workflow separates slice discovery from independent confirmation, a
 
 *This is a synthetic 10-example illustration, not an empirical SliceAudit result or a ManimGX render. The underlying examples and expected totals live in [`docs/demo_fixture.json`](docs/demo_fixture.json), and CI checks that the animation's numbers match the fixture. The final card illustrates the independent re-check step; it does not claim that a confirmation test has passed. Browsers with reduced-motion enabled show a static summary instead of the animation.*
 
+### What the example is showing
+
+The update fixes three predictions and breaks two. Looking only at the overall score, v2 appears better:
+
+| Group | v1 correct | v2 correct | Change |
+|---|---:|---:|---:|
+| Orange group | 4/4 (100%) | 2/4 (50%) | **−50 percentage points** |
+| Everyone else | 3/6 (50%) | 6/6 (100%) | **+50 percentage points** |
+| **All examples** | **7/10 (70%)** | **8/10 (80%)** | **+10 percentage points** |
+
+This is the hidden-regression pattern: the new model improves overall accuracy from 70% to 80%, but becomes substantially worse on the orange group. The aggregate score hides that local failure.
+
+SliceAudit is intended to do more than flag a small group with a worse score. It must check candidate slices on discovery data, then test them on separate confirmation data while accounting for household clustering and multiple comparisons. This tiny example only explains the problem; it is too small to establish a statistically reliable regression.
+
 ## Project status
 
 <small>Research prototype — M0.1 data audit completed under the original split allocation. No model comparison results are claimed.</small>
